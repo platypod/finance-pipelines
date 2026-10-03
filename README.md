@@ -58,6 +58,16 @@ Parsing facts (79 files, 2020-02 → 2026-08, one employer):
   nullable). `Prime de partage de la valeur` / `Indemnités non soumises` stay in category
   `other`.
 
+## Releasing
+
+CI (`.github/workflows`): `test.yml` on every push/PR (contracts valid, generated files in sync, unit + integration
+tests against a Postgres service); `build.yml` on a `vX.Y.Z` tag (tests first, then a multi-arch amd64/arm64 image
+to `ghcr.io/platypod/finance-pipelines`, public). Release = `git tag vX.Y.Z && git push origin vX.Y.Z`, then bump
+`finance.image` in `stack/apps/base/values/finance.yaml` (no Flux image automation yet).
+
+Gotcha: a global `*.sql` gitignore silently dropped the dbt models and migrations on the first import (CI on a clean
+checkout caught it); `.gitignore` now re-includes the SQL that is source.
+
 ## Dev loop
 
 ```sh

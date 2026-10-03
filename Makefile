@@ -59,5 +59,6 @@ sync-payslips:                 ## mirror new payslip PDFs to where the cluster r
 	mkdir -p $(PAYSLIPS_DST)
 	rsync -rt --exclude '._*' --exclude '@eaDir' --exclude '.DS_Store' --itemize-changes $(PAYSLIPS_SRC) $(PAYSLIPS_DST)
 	# world-readable: the pipeline pod runs as uid 10001 (macOS rsync has no --chmod)
+	find $(PAYSLIPS_DST) -name '._*' -delete   # AppleDouble files the macOS NFS client leaves behind
 	find $(PAYSLIPS_DST) -type d -exec chmod 755 {} +
 	find $(PAYSLIPS_DST) -type f -exec chmod 644 {} +

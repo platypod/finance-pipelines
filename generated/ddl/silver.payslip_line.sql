@@ -24,7 +24,7 @@ COMMENT ON COLUMN silver.payslip_line.period IS 'Pay month.';
 COMMENT ON COLUMN silver.payslip_line.line_no IS 'Row order within the payslip.';
 COMMENT ON COLUMN silver.payslip_line.section IS 'brut | cotisations | other.';
 COMMENT ON COLUMN silver.payslip_line.label IS 'Printed label.';
-COMMENT ON COLUMN silver.payslip_line.category IS 'gross_pay | health | provident | work_accident | retirement | family | unemployment | csg_crds | meal_vouchers | other_contributions | other.';
+COMMENT ON COLUMN silver.payslip_line.category IS 'Gross section: base_salary | bonus | time_off (leave, RTT, absences, sick pay) | back_pay | other_pay. Net side: bonus_exempt (value-sharing bonus, printed outside the gross) | health | provident | work_accident | retirement | family | unemployment | csg_crds | meal_vouchers | other_contributions | other.';
 COMMENT ON COLUMN silver.payslip_line.base IS 'Base amount. [classification: confidential]';
 COMMENT ON COLUMN silver.payslip_line.rate IS 'Rate, percent.';
 COMMENT ON COLUMN silver.payslip_line.employee_gain IS 'Employee-side gain (pay element). [classification: confidential]';

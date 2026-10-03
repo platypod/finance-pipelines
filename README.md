@@ -52,7 +52,9 @@ Parsing facts (79 files, 2020-02 → 2026-08, one employer):
 - **Privacy**: parsers read only finance fields. NIR, IBAN and address are never extracted
   (they are present in the PDFs). Tests use invented numbers; the real archive is only
   touched by the optional corpus test (`PAYSLIPS_DIR=… pytest tests/test_payslips_corpus.py`).
-- Parser change → bump `PARSER_VERSION`, run once with `PAYSLIPS_REPARSE=1`.
+- Parser change → bump `PARSER_VERSION`; with `PAYSLIPS_REPARSE=1` (set in the CronJob) files stored by an older version are re-parsed.
+- **Gross decomposition**: the gross-section elements are classified as `base_salary`, `bonus` (primes, commissions), `time_off` (leave/RTT payouts and the absence lines that offset them, sick pay), `back_pay` (rappels), `other_pay`; the value-sharing bonus, printed outside the gross, is `bonus_exempt`. A contract rule and a parser check require the elements to add up to the printed gross (this caught a dropped minus sign on `- 1 020,83` lines in two 2026 months).
+- **Views**: `gold.payslip_measure` holds every flow (gross, net, tax, contributions, employer cost, pay elements, contributions by category) as the month, the calendar year to date and the rolling 12 months, dense (zero months are rows) and NULL where a window has an unprinted figure. The dashboard's View switch (`dashboards/build_payslips_dashboard.py`) selects the metric-name prefix `` / `ytd_` / `r12_`.
 - Known gaps: the 5 OCR'd months lack some totals-table fields (`taxable_net`, hours,
   employer cost), and the employer cost is no longer printed after 2025-10 (columns are
   nullable). `Prime de partage de la valeur` / `Indemnités non soumises` stay in category

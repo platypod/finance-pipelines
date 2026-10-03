@@ -48,7 +48,7 @@ schema:
         logicalType: string
         physicalType: text
         required: true
-        description: "gross_pay | health | provident | work_accident | retirement | family | unemployment | csg_crds | meal_vouchers | other_contributions | other."
+        description: "Gross section: base_salary | bonus | time_off (leave, RTT, absences, sick pay) | back_pay | other_pay. Net side: bonus_exempt (value-sharing bonus, printed outside the gross) | health | provident | work_accident | retirement | family | unemployment | csg_crds | meal_vouchers | other_contributions | other."
       - name: base
         logicalType: number
         physicalType: numeric(12,2)
@@ -94,4 +94,8 @@ schema:
       - type: sql
         description: employee contribution lines sum to the printed total (+-0.05)
         query: SELECT count(*) FROM silver.payslip p WHERE abs(p.employee_contributions - coalesce((SELECT sum(l.employee_deduction) FROM silver.payslip_line l WHERE l.period = p.period AND l.section = 'cotisations'), 0)) > 0.05
+        mustBe: 0
+      - type: sql
+        description: the gross-section elements (gains minus deductions) add up to the printed gross (+-0.05)
+        query: SELECT count(*) FROM silver.payslip p WHERE abs(p.gross_amount - coalesce((SELECT sum(coalesce(l.employee_gain, 0) - coalesce(l.employee_deduction, 0)) FROM silver.payslip_line l WHERE l.period = p.period AND l.section = 'brut'), 0)) > 0.05
         mustBe: 0

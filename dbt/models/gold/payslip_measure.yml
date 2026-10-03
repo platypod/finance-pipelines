@@ -1,0 +1,53 @@
+# GENERATED from contracts/gold.payslip_measure.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: payslip_measure
+  config:
+    meta:
+      data_contract: urn:platypod:finance:gold:payslip_measure
+    materialized: table
+    contract:
+      enforced: true
+  description: 'One row per month, measure, item and side. Dense: zero amounts are
+    rows too.'
+  columns:
+  - name: period
+    data_type: date
+    description: First day of the pay month.
+    constraints:
+    - type: not_null
+  - name: measure
+    data_type: text
+    description: gross | net_before_tax | net_paid | tax_withheld | taxable_net |
+      employee_contributions | employer_contributions | employer_cost | pay_element
+      | contribution.
+    constraints:
+    - type: not_null
+  - name: item
+    data_type: text
+    description: ''''' for plain flows; the pay element (base_salary | bonus | time_off
+      | back_pay | other_pay | bonus_exempt) or the contribution category.'
+    constraints:
+    - type: not_null
+  - name: side
+    data_type: text
+    description: ''''' except for contributions: employee | employer.'
+    constraints:
+    - type: not_null
+  - name: value
+    data_type: numeric(12,2)
+    description: The amount for the month. NULL when the payslip does not print it.
+    meta:
+      classification: confidential
+  - name: ytd_value
+    data_type: numeric(12,2)
+    description: Calendar year to date including this month. NULL if any month so
+      far has no figure.
+    meta:
+      classification: confidential
+  - name: r12_value
+    data_type: numeric(12,2)
+    description: Rolling 12 months ending this month. NULL until 12 months exist or
+      if any has no figure.
+    meta:
+      classification: confidential

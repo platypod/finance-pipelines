@@ -1,0 +1,88 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:gold:payslip_measure
+name: payslip_measure
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: payslips
+description:
+  purpose: "Every flow figure of a payslip in three views (the month, its calendar year to date, its rolling 12 months), including the gross split into pay elements (bonuses among them) and the contributions by category. Feeds the dashboards' Monthly / Year to date / Rolling 12 months switch."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: gold
+schema:
+  - name: payslip_measure
+    physicalType: table
+    description: "One row per month, measure, item and side. Dense: zero amounts are rows too."
+    properties:
+      - name: period
+        logicalType: date
+        physicalType: date
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: First day of the pay month.
+      - name: measure
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 2
+        description: "gross | net_before_tax | net_paid | tax_withheld | taxable_net | employee_contributions | employer_contributions | employer_cost | pay_element | contribution."
+      - name: item
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 3
+        description: "'' for plain flows; the pay element (base_salary | bonus | time_off | back_pay | other_pay | bonus_exempt) or the contribution category."
+      - name: side
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 4
+        description: "'' except for contributions: employee | employer."
+      - name: value
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: false
+        description: The amount for the month. NULL when the payslip does not print it.
+        classification: confidential
+      - name: ytd_value
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: false
+        description: Calendar year to date including this month. NULL if any month so far has no figure.
+        classification: confidential
+      - name: r12_value
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: false
+        description: Rolling 12 months ending this month. NULL until 12 months exist or if any has no figure.
+        classification: confidential
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: the pay elements (bonus_exempt excluded, it is printed outside the gross) add up to the printed gross (+-0.05)
+        query: SELECT count(*) FROM (SELECT period, sum(value) AS s FROM gold.payslip_measure WHERE measure = 'pay_element' AND item <> 'bonus_exempt' GROUP BY period) a JOIN silver.payslip p USING (period) WHERE abs(a.s - p.gross_amount) > 0.05
+        mustBe: 0
+      - type: sql
+        description: year-to-date figures agree with the independently computed ones in gold.income_monthly
+        query: SELECT count(*) FROM gold.payslip_measure m JOIN gold.income_monthly i USING (period) WHERE (m.measure = 'gross' AND abs(m.ytd_value - i.ytd_gross) > 0.05) OR (m.measure = 'net_paid' AND abs(m.ytd_value - i.ytd_net_paid) > 0.05) OR (m.measure = 'tax_withheld' AND abs(m.ytd_value - i.ytd_pas) > 0.05)
+        mustBe: 0
+      - type: sql
+        description: a rolling-12-month figure equals the sum of that month and the 11 before it
+        query: SELECT count(*) FROM gold.payslip_measure m WHERE m.measure = 'gross' AND m.r12_value IS NOT NULL AND abs(m.r12_value - (SELECT sum(x.value) FROM gold.payslip_measure x WHERE x.measure = 'gross' AND x.period > m.period - interval '12 months' AND x.period <= m.period)) > 0.05
+        mustBe: 0
+slaProperties:
+  - property: frequency
+    value: 1
+    unit: month

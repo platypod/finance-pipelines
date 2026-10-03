@@ -48,6 +48,11 @@ def check(p: Parsed, expected_period: str) -> None:
     erc = num(s.get("employer_contributions"))
     if erc is not None and abs(sum(v for v in er if v) - erc) > tol:
         w.append(f"employer contribution lines sum to {sum(v for v in er if v)} but total is {erc}")
+    # the pay elements of the gross section must add up to the printed gross (a lost sign shows up here)
+    gross = num(s.get("gross"))
+    pay = sum((num(l.employee_gain) or 0) - (num(l.employee_deduct) or 0) for l in p.lines if l.section == "brut")
+    if gross is not None and p.lines and abs(pay - gross) > tol:
+        w.append(f"gross pay elements sum to {pay} but gross is {gross}")
     nbt, pas, paid = num(s.get("net_before_tax")), num(s.get("pas_amount")), num(s.get("net_paid"))
     if None not in (nbt, pas, paid) and abs(nbt - pas - paid) > tol:
         w.append(f"net paid {paid} != net before tax {nbt} - PAS {pas}")

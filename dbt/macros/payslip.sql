@@ -10,7 +10,14 @@
 {# Category of a payslip line. Labels differ across layouts; order matters (specific before generic). #}
 {% macro line_category(section, label) -%}
   case
-    when {{ section }} = 'brut' then 'gross_pay'
+    {# gross section: what the gross pay is made of (the elements add up to the printed gross) #}
+    when {{ section }} = 'brut' and {{ label }} ~* '^salaire de base' then 'base_salary'
+    when {{ section }} = 'brut' and {{ label }} ~* '^(prime|commission)' then 'bonus'
+    when {{ section }} = 'brut' and {{ label }} ~* '^rappel' then 'back_pay'
+    when {{ section }} = 'brut' and {{ label }} ~* 'cong[eé]s|rtt|absence|maladie|ijss|ajustement du net' then 'time_off'
+    when {{ section }} = 'brut' then 'other_pay'
+    {# printed outside the gross (net side), but still a bonus; tracked apart so gross reconciles #}
+    when {{ label }} ~* '^prime de partage' then 'bonus_exempt'
     when {{ label }} ~* 'csg' then 'csg_crds'
     when {{ label }} ~* 'ch.mage|apec' then 'unemployment'
     when {{ label }} ~* '^(base|compl[eé]ment)$|^famille|familiales' then 'family'

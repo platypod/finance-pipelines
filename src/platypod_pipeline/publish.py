@@ -6,7 +6,7 @@ shows each person only their own series (the same mechanism Jellyfin uses). Admi
 all owners by design of that shim.
 
 Facts that shape this module:
-- One sample per payslip, stamped mid-month (the 15th, 12:00 UTC). Prometheus windows
+- One sample per payslip and view (month / year to date / rolling 12 months), stamped mid-month (the 15th, 12:00 UTC). Prometheus windows
   are left-open, so a sample exactly at a month boundary would fall out of
   `sum_over_time(x[$__range])` for calendar ranges; mid-month never does.
 - Samples carry explicit historical timestamps, which the Python OTel SDK cannot emit,
@@ -38,26 +38,24 @@ from .config import Settings
 
 log = logging.getLogger(__name__)
 
-# metric name (Mimir turns dots into underscores) -> (unit, gold.income_monthly column)
+# From gold.income_monthly: the ratios, the printed withholding rate and the leave balances. (Every flow
+# figure comes from gold.payslip_measure below, in its three views.)
 INCOME_METRICS: dict[str, tuple[str, str]] = {
-    "finance.payslip.gross_eur": ("EUR", "gross_amount"),
-    "finance.payslip.net_before_tax_eur": ("EUR", "net_before_tax"),
-    "finance.payslip.net_paid_eur": ("EUR", "net_paid"),
-    "finance.payslip.tax_withheld_eur": ("EUR", "pas_amount"),
     "finance.payslip.tax_rate_percent": ("%", "pas_rate"),
-    "finance.payslip.employee_contributions_eur": ("EUR", "employee_contributions"),
-    "finance.payslip.employer_contributions_eur": ("EUR", "employer_contributions"),
-    "finance.payslip.employer_cost_eur": ("EUR", "employer_cost"),
-    "finance.payslip.taxable_net_eur": ("EUR", "taxable_net"),
-    "finance.payslip.ytd_gross_eur": ("EUR", "ytd_gross"),
-    "finance.payslip.ytd_net_paid_eur": ("EUR", "ytd_net_paid"),
-    "finance.payslip.ytd_tax_withheld_eur": ("EUR", "ytd_pas"),
     "finance.payslip.net_to_gross_ratio": ("1", "net_to_gross"),
     "finance.payslip.contributions_to_gross_ratio": ("1", "contributions_to_gross"),
 }
 LEAVE_METRIC = "finance.payslip.leave_days"  # {kind="cp"|"rtt"}
-CONTRIBUTION_METRIC = "finance.payslip.contribution_eur"  # {category, side="employee"|"employer"}
 LEAVE_COLUMNS = {"cp": "leave_cp_balance", "rtt": "leave_rtt_balance"}
+
+# From gold.payslip_measure. One metric per measure and view, named
+#   finance.payslip.[ytd_|r12_]<measure>_eur        (flows; pay_element{element}, contribution{category,side})
+# so that a dashboard can switch Monthly / Year to date / Rolling 12 months by the metric-name prefix.
+FLOW_MEASURES = (
+    "gross", "net_before_tax", "net_paid", "tax_withheld", "taxable_net",
+    "employee_contributions", "employer_contributions", "employer_cost",
+)
+VIEWS = (("", "value"), ("ytd_", "ytd_value"), ("r12_", "r12_value"))  # (name prefix, gold column)
 
 
 def sample_time(period: dt.date) -> int:
@@ -98,8 +96,8 @@ class _Builder:
         self.points += 1
 
 
-def build_request(owner: str, income: list[dict], contributions: list[dict]) -> tuple[ExportMetricsServiceRequest, int]:
-    """income: gold.income_monthly rows; contributions: gold.contributions_monthly rows."""
+def build_request(owner: str, income: list[dict], measures: list[dict]) -> tuple[ExportMetricsServiceRequest, int]:
+    """income: gold.income_monthly rows; measures: gold.payslip_measure rows."""
     if not owner or owner.startswith("_"):
         raise ValueError(f"refusing to publish with owner={owner!r}: must be a real login")
     b = _Builder(owner)
@@ -108,11 +106,18 @@ def build_request(owner: str, income: list[dict], contributions: list[dict]) -> 
             b.add(name, unit, row["period"], row[column])
         for kind, column in LEAVE_COLUMNS.items():
             b.add(LEAVE_METRIC, "d", row["period"], row[column], kind=kind)
-    for row in contributions:
-        for side in ("employee", "employer"):
-            value = row[f"{side}_amount"]
-            if value:  # zero-valued categories would only add series
-                b.add(CONTRIBUTION_METRIC, "EUR", row["period"], value, category=row["category"], side=side)
+    for row in measures:
+        measure, item, side = row["measure"], row["item"], row["side"]
+        if measure in FLOW_MEASURES:
+            base, attrs = f"{measure}_eur", {}
+        elif measure == "pay_element":
+            base, attrs = "pay_element_eur", {"element": item}
+        elif measure == "contribution":
+            base, attrs = "contribution_eur", {"category": item, "side": side}
+        else:
+            raise ValueError(f"unknown measure {measure!r} in gold.payslip_measure")
+        for prefix, column in VIEWS:
+            b.add(f"finance.payslip.{prefix}{base}", "EUR", row["period"], row[column], **attrs)
     return b.request, b.points
 
 
@@ -130,8 +135,8 @@ def publish(settings: Settings, *, timeout: float = 30.0) -> int:
     if not settings.otlp_endpoint:
         raise RuntimeError("OTEL_EXPORTER_OTLP_ENDPOINT is not set")
     income = _rows(settings, "select * from gold.income_monthly order by period")
-    contributions = _rows(settings, "select * from gold.contributions_monthly order by period, category")
-    request, points = build_request(settings.owner, income, contributions)
+    measures = _rows(settings, "select * from gold.payslip_measure order by period, measure, item, side")
+    request, points = build_request(settings.owner, income, measures)
     url = settings.otlp_endpoint.rstrip("/") + "/v1/metrics"
     resp = requests.post(url, data=request.SerializeToString(), headers={"Content-Type": "application/x-protobuf"}, timeout=timeout)
     resp.raise_for_status()

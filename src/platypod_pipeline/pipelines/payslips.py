@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 JOB = "finance.payslips"
 NAME = re.compile(r"^(\d{4})(\d{2})\.pdf$")
 OUTPUTS = ["bronze.payslip_file", "bronze.payslip_line_raw", "silver.payslip", "silver.payslip_line",
-           "gold.income_monthly", "gold.contributions_monthly"]
+           "gold.income_monthly", "gold.contributions_monthly", "gold.payslip_measure"]
 LINE_COLS = ("section", "label", "base", "rate", "employee_gain", "employee_deduct",
              "employer_base", "employer_rate", "employer_amount")
 
@@ -115,7 +115,7 @@ def run(settings: Settings | None = None) -> None:
             if statuses.get(status):
                 log.warning("%d payslip(s) %s, excluded from silver: %s", len(statuses[status]), status, ", ".join(statuses[status]))
         with run.step("transform"):
-            run_dbt(run, "build", select="payslip payslip_line income_monthly contributions_monthly")
+            run_dbt(run, "build", select="payslip payslip_line income_monthly contributions_monthly payslip_measure")
             with db.connect(settings, "transform") as conn:
                 for table in OUTPUTS[2:]:
                     run.rows[table] = conn.execute(f"select count(*) from {table}").fetchone()[0]

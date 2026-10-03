@@ -69,29 +69,38 @@ def fold(text: str) -> str:
 
 
 def _merge(words: list[Word], gap: float) -> list[Token]:
-    """Join thousands groups (`5` + `525,98`) and detached minus signs into one token."""
-    out: list[Token] = []
+    """Join thousands groups (`5` + `525,98`), then detached minus signs, into single tokens.
+
+    Two passes because the minus precedes the *whole* number: `-` `1` `020,83` is -1 020,83,
+    and a one-pass pairwise merge would see `-` followed by `1` (not yet a number) and lose the sign.
+    """
+    def close(a: Word | Token, b: Word | Token) -> bool:
+        return abs(b.top - a.top) < 3 and 0 <= b.x0 - a.x1 <= gap
+
+    # pass 1: thousands groups
+    tokens: list[Token] = []
     i = 0
     while i < len(words):
         w = words[i]
         nxt = words[i + 1] if i + 1 < len(words) else None
-        joinable = (
-            nxt is not None
-            and abs(nxt.top - w.top) < 3
-            and 0 <= nxt.x0 - w.x1 <= gap
-            and (
-                (THOUSANDS_PREFIX.match(w.text) and THOUSANDS_TAIL.match(nxt.text))
-                or (w.text in {"-", "−"} and NUMBER.match(nxt.text))
-            )
-        )
-        if joinable:
-            sign = "-" if w.text in {"-", "−"} else None
-            text = f"-{nxt.text}" if sign else f"{w.text} {nxt.text}"
-            out.append(Token(text, w.x0, nxt.x1, w.top, nxt.size))
+        if nxt is not None and close(w, nxt) and THOUSANDS_PREFIX.match(w.text) and THOUSANDS_TAIL.match(nxt.text):
+            tokens.append(Token(f"{w.text} {nxt.text}", w.x0, nxt.x1, w.top, nxt.size))
             i += 2
-            continue
-        out.append(Token(w.text, w.x0, w.x1, w.top, w.size))
-        i += 1
+        else:
+            tokens.append(Token(w.text, w.x0, w.x1, w.top, w.size))
+            i += 1
+    # pass 2: a lone minus directly in front of a number
+    out: list[Token] = []
+    i = 0
+    while i < len(tokens):
+        t = tokens[i]
+        nxt = tokens[i + 1] if i + 1 < len(tokens) else None
+        if nxt is not None and t.text in {"-", "\u2212"} and close(t, nxt) and NUMBER.match(nxt.text):
+            out.append(Token(f"-{nxt.text}", t.x0, nxt.x1, t.top, nxt.size))
+            i += 2
+        else:
+            out.append(t)
+            i += 1
     return out
 
 

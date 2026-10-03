@@ -32,8 +32,10 @@ models:
     - type: not_null
   - name: category
     data_type: text
-    description: gross_pay | health | provident | work_accident | retirement | family
-      | unemployment | csg_crds | meal_vouchers | other_contributions | other.
+    description: 'Gross section: base_salary | bonus | time_off (leave, RTT, absences,
+      sick pay) | back_pay | other_pay. Net side: bonus_exempt (value-sharing bonus,
+      printed outside the gross) | health | provident | work_accident | retirement
+      | family | unemployment | csg_crds | meal_vouchers | other_contributions | other.'
     constraints:
     - type: not_null
   - name: base

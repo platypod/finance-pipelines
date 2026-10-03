@@ -22,6 +22,23 @@ def test_thousands_groups_and_detached_minus_are_merged():
     assert [t.text for t in row.numbers()] == ["5 525,98", "-28.00"]
 
 
+def test_minus_in_front_of_a_thousands_grouped_amount_is_kept():
+    from platypod_pipeline.payslips.words import Word
+
+    # `-` `1` `020,83` as printed on an absence line (real x positions): the sign precedes the whole number
+    page = Page(595, 842, [Word("5,00", 285.5, 298.2, 10), Word("-", 374.8, 376.6, 10), Word("1", 378.3, 382.1, 10), Word("020,83", 383.7, 404.0, 10)])
+    assert [t.text for t in rows_of([page])[0].numbers()] == ["5,00", "-1 020,83"]
+
+
+def test_gross_pay_elements_must_add_up_to_the_printed_gross():
+    p = silae.parse([silae_page()])
+    check(p, "2099-01")
+    assert not any("gross pay elements" in m for m in p.warnings)
+    p.lines[0].employee_gain = "3 100.00"  # a mis-read element
+    check(p, "2099-01")
+    assert any("gross pay elements" in m for m in p.warnings)
+
+
 def test_layout_detection():
     assert detect([silae_page()]) == "silae"
     assert detect(modern_pages()) == "modern"

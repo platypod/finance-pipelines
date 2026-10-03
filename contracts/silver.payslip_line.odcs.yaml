@@ -1,0 +1,97 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:silver:payslip_line
+name: payslip_line
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: payslips
+description:
+  purpose: One typed row per payslip table row.
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: silver
+schema:
+  - name: payslip_line
+    physicalType: table
+    description: Typed table rows, classified by category.
+    properties:
+      - name: period
+        logicalType: date
+        physicalType: date
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: Pay month.
+      - name: line_no
+        logicalType: integer
+        physicalType: integer
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 2
+        description: Row order within the payslip.
+      - name: section
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "brut | cotisations | other."
+      - name: label
+        logicalType: string
+        physicalType: text
+        required: true
+        description: Printed label.
+      - name: category
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "gross_pay | health | provident | work_accident | retirement | family | unemployment | csg_crds | meal_vouchers | other_contributions | other."
+      - name: base
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Base amount.
+        classification: confidential
+      - name: rate
+        logicalType: number
+        physicalType: numeric(10,4)
+        description: Rate, percent.
+      - name: employee_gain
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Employee-side gain (pay element).
+        classification: confidential
+      - name: employee_deduction
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Employee-side deduction.
+        classification: confidential
+      - name: employer_base
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Employer base.
+        classification: confidential
+      - name: employer_rate
+        logicalType: number
+        physicalType: numeric(10,4)
+        description: Employer rate, percent.
+      - name: employer_amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Employer-side amount.
+        classification: confidential
+      - name: source_sha256
+        logicalType: string
+        physicalType: text
+        required: true
+        description: File this row was derived from.
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: employee contribution lines sum to the printed total (+-0.05)
+        query: SELECT count(*) FROM silver.payslip p WHERE abs(p.employee_contributions - coalesce((SELECT sum(l.employee_deduction) FROM silver.payslip_line l WHERE l.period = p.period AND l.section = 'cotisations'), 0)) > 0.05
+        mustBe: 0

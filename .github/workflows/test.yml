@@ -1,0 +1,64 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Real Postgres for the integration tests (pipelines, contracts, dbt, lineage).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: admin
+          POSTGRES_DB: finance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      FINANCE_PG_HOST: localhost
+      FINANCE_PG_PORT: "5432"
+      FINANCE_PG_USER: postgres
+      FINANCE_PG_PASSWORD: admin
+      FINANCE_PG_ADMIN_USER: postgres
+      FINANCE_PG_ADMIN_PASSWORD: admin
+      FINANCE_PG_INGEST_USER: finance_ingest
+      FINANCE_PG_INGEST_PASSWORD: i
+      FINANCE_PG_TRANSFORM_USER: finance_transform
+      FINANCE_PG_TRANSFORM_PASSWORD: t
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Contracts valid and generated files in sync
+        run: |
+          pp lint
+          pp generate --check
+
+      - name: Create the roles the cluster creates
+        run: |
+          PGPASSWORD=admin psql -h localhost -U postgres -d finance -c \
+            "create role finance_ingest login password 'i'; create role finance_transform login password 't'; create role finance_grafana login password 'g';"
+
+      - name: Run tests
+        run: pytest -q

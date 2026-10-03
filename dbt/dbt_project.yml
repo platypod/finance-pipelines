@@ -1,0 +1,13 @@
+name: finance
+version: 1.0.0
+profile: finance
+model-paths: [models]
+macro-paths: [macros]
+# Tables are created from the ODCS contracts (see `pp migrate`); dbt only fills them.
+# Every model sets its own materialization in a config() header (incremental,
+# full_refresh=false) which overrides the `materialized: table` the contract
+# exporter writes into the generated YAML.
+models:
+  finance:
+    silver: {+schema: silver}
+    gold: {+schema: gold}

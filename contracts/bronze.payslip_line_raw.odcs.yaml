@@ -1,0 +1,95 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:bronze:payslip_line_raw
+name: payslip_line_raw
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: payslips
+description:
+  purpose: As-received table rows of each payslip.
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: bronze
+schema:
+  - name: payslip_line_raw
+    physicalType: table
+    description: One row per printed table row; values are raw strings.
+    properties:
+      - name: sha256
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: Parent file.
+      - name: line_no
+        logicalType: integer
+        physicalType: integer
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 2
+        description: Row order within the payslip.
+      - name: section
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "brut | cotisations | other."
+      - name: label
+        logicalType: string
+        physicalType: text
+        required: true
+        description: Printed label.
+      - name: base
+        logicalType: string
+        physicalType: text
+        description: Raw `base` value as printed.
+        classification: confidential
+      - name: rate
+        logicalType: string
+        physicalType: text
+        description: Raw `rate` value as printed.
+        classification: confidential
+      - name: employee_gain
+        logicalType: string
+        physicalType: text
+        description: Raw `employee_gain` value as printed.
+        classification: confidential
+      - name: employee_deduct
+        logicalType: string
+        physicalType: text
+        description: Raw `employee_deduct` value as printed.
+        classification: confidential
+      - name: employer_base
+        logicalType: string
+        physicalType: text
+        description: Raw `employer_base` value as printed.
+        classification: confidential
+      - name: employer_rate
+        logicalType: string
+        physicalType: text
+        description: Raw `employer_rate` value as printed.
+        classification: confidential
+      - name: employer_amount
+        logicalType: string
+        physicalType: text
+        description: Raw `employer_amount` value as printed.
+        classification: confidential
+      - name: _ingested_at
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        description: When the row landed in bronze (lineage column).
+      - name: _run_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+        description: Pipeline run that ingested the row (lineage column).
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0

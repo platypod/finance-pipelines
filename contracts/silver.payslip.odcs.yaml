@@ -1,0 +1,164 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:silver:payslip
+name: payslip
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: payslips
+description:
+  purpose: One typed row per monthly payslip.
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: silver
+schema:
+  - name: payslip
+    physicalType: table
+    description: Monthly payslip summary (latest file wins per period).
+    properties:
+      - name: period
+        logicalType: date
+        physicalType: date
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: First day of the pay month.
+      - name: employer_siret
+        logicalType: string
+        physicalType: text
+        required: true
+        description: Employer SIRET.
+        classification: internal
+      - name: gross_amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Gross pay.
+        classification: confidential
+        quality:
+          - type: sql
+            description: gross pay is positive
+            query: SELECT count(*) FROM silver.payslip WHERE gross_amount <= 0
+            mustBe: 0
+      - name: employee_contributions
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Total employee contributions (cotisations salariales).
+        classification: confidential
+      - name: employer_contributions
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Total employer contributions.
+        classification: confidential
+      - name: net_before_tax
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Net pay before income tax.
+        classification: confidential
+      - name: net_social
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Net social amount (printed from 2024).
+        classification: confidential
+      - name: pas_base
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Withholding-tax base.
+        classification: confidential
+      - name: pas_rate
+        logicalType: number
+        physicalType: numeric(7,4)
+        description: Withholding-tax rate, percent.
+      - name: pas_amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Income tax withheld at source (PAS).
+        classification: confidential
+      - name: net_paid
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Net paid to the bank account.
+        classification: confidential
+      - name: taxable_net
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Net taxable income of the month.
+        classification: confidential
+      - name: employer_cost
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Total employer cost (coût global; not printed after 2025-10).
+        classification: confidential
+      - name: total_paid
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Total paid by the employer.
+        classification: confidential
+      - name: hours
+        logicalType: number
+        physicalType: numeric(8,2)
+        description: Hours worked in the month.
+      - name: ytd_gross
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Year-to-date gross as printed.
+        classification: confidential
+      - name: ytd_taxable_net
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Year-to-date taxable net as printed.
+        classification: confidential
+      - name: leave_cp_n1_balance
+        logicalType: number
+        physicalType: numeric(7,2)
+        description: Paid-leave balance, previous year (days).
+      - name: leave_cp_n_balance
+        logicalType: number
+        physicalType: numeric(7,2)
+        description: Paid-leave balance, current year (days).
+      - name: leave_rtt_balance
+        logicalType: number
+        physicalType: numeric(7,2)
+        description: RTT balance (days).
+      - name: payment_date
+        logicalType: date
+        physicalType: date
+        description: Payment date.
+      - name: layout
+        logicalType: string
+        physicalType: text
+        required: true
+        description: Source layout.
+      - name: source
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "text | ocr."
+      - name: source_sha256
+        logicalType: string
+        physicalType: text
+        required: true
+        description: File this row was derived from.
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: net paid = net before tax - withholding tax (+-0.05)
+        query: SELECT count(*) FROM silver.payslip WHERE abs(net_paid - (net_before_tax - coalesce(pas_amount, 0))) > 0.05
+        mustBe: 0
+      - type: sql
+        description: no month is missing between the first and last payslip
+        query: SELECT count(*) FROM generate_series((SELECT min(period) FROM silver.payslip), (SELECT max(period) FROM silver.payslip), interval '1 month') AS m(p) WHERE NOT EXISTS (SELECT 1 FROM silver.payslip s WHERE s.period = m.p::date)
+        mustBe: 0
+slaProperties:
+  - property: frequency
+    value: 1
+    unit: month

@@ -1,0 +1,52 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:gold:contributions_monthly
+name: contributions_monthly
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: payslips
+description:
+  purpose: Monthly contributions by category.
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: gold
+schema:
+  - name: contributions_monthly
+    physicalType: table
+    description: One row per month and category.
+    properties:
+      - name: period
+        logicalType: date
+        physicalType: date
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: First day of the pay month.
+      - name: category
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 2
+        description: Contribution category (see silver.payslip_line).
+      - name: employee_amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Employee-side deductions in the category.
+        classification: confidential
+      - name: employer_amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Employer-side amounts in the category.
+        classification: confidential
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0

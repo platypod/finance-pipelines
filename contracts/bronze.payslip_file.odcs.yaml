@@ -1,0 +1,95 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:bronze:payslip_file
+name: payslip_file
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: payslips
+description:
+  purpose: As-received record of every payslip PDF found, with the parser's raw output. No NIR, IBAN or address is ever extracted.
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: bronze
+schema:
+  - name: payslip_file
+    physicalType: table
+    description: One row per distinct file content (sha256).
+    properties:
+      - name: sha256
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: SHA-256 of the file content (idempotency key).
+      - name: source_path
+        logicalType: string
+        physicalType: text
+        required: true
+        description: Path relative to the payslip root.
+        classification: internal
+      - name: size_bytes
+        logicalType: integer
+        physicalType: bigint
+        required: true
+        description: File size.
+      - name: file_mtime
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        description: File modification time.
+      - name: period
+        logicalType: date
+        physicalType: date
+        required: true
+        description: Pay month (first day), from the file name.
+      - name: layout
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Detected layout: silae | modern | unknown."
+      - name: source
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "How the text was obtained: text | ocr."
+      - name: parser_version
+        logicalType: string
+        physicalType: text
+        required: true
+        description: Version of the parser that produced `summary`.
+      - name: status
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "parsed (all arithmetic checks pass) | review (checks failed) | unsupported (no known layout)."
+      - name: warnings
+        logicalType: object
+        physicalType: jsonb
+        required: true
+        description: Parser/consistency warnings.
+      - name: summary
+        logicalType: object
+        physicalType: jsonb
+        required: true
+        description: Raw summary fields exactly as printed (strings), canonical keys.
+        classification: confidential
+      - name: _ingested_at
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        description: When the row landed in bronze (lineage column).
+      - name: _run_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+        description: Pipeline run that ingested the row (lineage column).
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0

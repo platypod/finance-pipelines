@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+build/
+dbt/.user.yml
+
+# The user's global ignore drops *.sql (database dumps). These two directories are source,
+# not dumps: hand-written migrations and DDL generated from the ODCS contracts.
+!migrations/*.sql
+!generated/ddl/*.sql

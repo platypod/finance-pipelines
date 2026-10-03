@@ -1,0 +1,114 @@
+# GENERATED from contracts/gold.income_monthly.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: income_monthly
+  config:
+    meta:
+      data_contract: urn:platypod:finance:gold:income_monthly
+    materialized: table
+    contract:
+      enforced: true
+  description: One row per month, with running year-to-date figures computed from
+    the months themselves.
+  columns:
+  - name: period
+    data_type: date
+    description: First day of the pay month.
+    constraints:
+    - type: not_null
+    - type: unique
+  - name: year
+    data_type: integer
+    description: Calendar year.
+    constraints:
+    - type: not_null
+  - name: gross_amount
+    data_type: numeric(12,2)
+    description: Gross pay.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: net_before_tax
+    data_type: numeric(12,2)
+    description: Net before income tax.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: net_paid
+    data_type: numeric(12,2)
+    description: Net paid.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: pas_amount
+    data_type: numeric(12,2)
+    description: Income tax withheld.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: pas_rate
+    data_type: numeric(7,4)
+    description: Withholding rate, percent.
+  - name: employee_contributions
+    data_type: numeric(12,2)
+    description: Employee contributions.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: employer_contributions
+    data_type: numeric(12,2)
+    description: Employer contributions.
+    meta:
+      classification: confidential
+  - name: employer_cost
+    data_type: numeric(12,2)
+    description: Employer cost.
+    meta:
+      classification: confidential
+  - name: taxable_net
+    data_type: numeric(12,2)
+    description: Net taxable.
+    meta:
+      classification: confidential
+  - name: ytd_gross
+    data_type: numeric(12,2)
+    description: Gross, year to date (sum of months).
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: ytd_net_paid
+    data_type: numeric(12,2)
+    description: Net paid, year to date.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: ytd_pas
+    data_type: numeric(12,2)
+    description: Tax withheld, year to date.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: net_to_gross
+    data_type: numeric(7,4)
+    description: net_paid / gross_amount.
+    constraints:
+    - type: not_null
+  - name: contributions_to_gross
+    data_type: numeric(7,4)
+    description: employee_contributions / gross_amount.
+    constraints:
+    - type: not_null
+  - name: leave_cp_balance
+    data_type: numeric(7,2)
+    description: Paid-leave balance (previous + current year, days).
+  - name: leave_rtt_balance
+    data_type: numeric(7,2)
+    description: RTT balance (days).

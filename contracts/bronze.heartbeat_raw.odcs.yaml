@@ -1,0 +1,53 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:bronze:heartbeat_raw
+name: heartbeat_raw
+version: 1.0.0
+status: active
+domain: platform
+dataProduct: heartbeat
+description:
+  purpose: Canary source proving the pipeline plumbing end to end (ingest, dbt, contract test, telemetry, lineage). Carries no finance data.
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: bronze
+schema:
+  - name: heartbeat_raw
+    physicalType: table
+    description: One row per heartbeat as emitted by the ingest step, untouched.
+    properties:
+      - name: beat_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: Unique id of the beat.
+      - name: beat_at
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        description: When the beat was produced.
+      - name: source
+        logicalType: string
+        physicalType: text
+        required: true
+        description: Emitting job.
+      - name: _run_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+        description: Pipeline run that ingested the row (lineage column).
+      - name: _ingested_at
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        description: When the row landed in bronze (lineage column).
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0

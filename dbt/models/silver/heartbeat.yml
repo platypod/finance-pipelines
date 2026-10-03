@@ -1,0 +1,33 @@
+# GENERATED from contracts/silver.heartbeat.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: heartbeat
+  config:
+    meta:
+      data_contract: urn:platypod:finance:silver:heartbeat
+    materialized: table
+    contract:
+      enforced: true
+  description: One row per distinct heartbeat.
+  columns:
+  - name: beat_id
+    data_type: uuid
+    description: Unique id of the beat.
+    constraints:
+    - type: not_null
+    - type: unique
+  - name: beat_at
+    data_type: timestamptz
+    description: When the beat was produced.
+    constraints:
+    - type: not_null
+  - name: source
+    data_type: text
+    description: Emitting job.
+    constraints:
+    - type: not_null
+  - name: lag_seconds
+    data_type: numeric(12,3)
+    description: Seconds between production and ingestion.
+    constraints:
+    - type: not_null

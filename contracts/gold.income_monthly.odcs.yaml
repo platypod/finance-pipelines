@@ -1,0 +1,127 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:gold:income_monthly
+name: income_monthly
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: payslips
+description:
+  purpose: Monthly income and tax summary feeding dashboards.
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: gold
+schema:
+  - name: income_monthly
+    physicalType: table
+    description: One row per month, with running year-to-date figures computed from the months themselves.
+    properties:
+      - name: period
+        logicalType: date
+        physicalType: date
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: First day of the pay month.
+      - name: year
+        logicalType: integer
+        physicalType: integer
+        required: true
+        description: Calendar year.
+      - name: gross_amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Gross pay.
+        classification: confidential
+      - name: net_before_tax
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Net before income tax.
+        classification: confidential
+      - name: net_paid
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Net paid.
+        classification: confidential
+      - name: pas_amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Income tax withheld.
+        classification: confidential
+      - name: pas_rate
+        logicalType: number
+        physicalType: numeric(7,4)
+        description: Withholding rate, percent.
+      - name: employee_contributions
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Employee contributions.
+        classification: confidential
+      - name: employer_contributions
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Employer contributions.
+        classification: confidential
+      - name: employer_cost
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Employer cost.
+        classification: confidential
+      - name: taxable_net
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: Net taxable.
+        classification: confidential
+      - name: ytd_gross
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Gross, year to date (sum of months).
+        classification: confidential
+      - name: ytd_net_paid
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Net paid, year to date.
+        classification: confidential
+      - name: ytd_pas
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: Tax withheld, year to date.
+        classification: confidential
+      - name: net_to_gross
+        logicalType: number
+        physicalType: numeric(7,4)
+        required: true
+        description: net_paid / gross_amount.
+      - name: contributions_to_gross
+        logicalType: number
+        physicalType: numeric(7,4)
+        required: true
+        description: employee_contributions / gross_amount.
+      - name: leave_cp_balance
+        logicalType: number
+        physicalType: numeric(7,2)
+        description: Paid-leave balance (previous + current year, days).
+      - name: leave_rtt_balance
+        logicalType: number
+        physicalType: numeric(7,2)
+        description: RTT balance (days).
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+slaProperties:
+  - property: frequency
+    value: 1
+    unit: month

@@ -1,0 +1,12 @@
+finance:
+  target: pipeline
+  outputs:
+    pipeline:
+      type: postgres
+      host: "{{ env_var('FINANCE_PG_HOST', 'localhost') }}"
+      port: "{{ env_var('FINANCE_PG_PORT', '5432') | as_number }}"
+      dbname: "{{ env_var('FINANCE_PG_DATABASE', 'finance') }}"
+      user: "{{ env_var('FINANCE_PG_TRANSFORM_USER', env_var('FINANCE_PG_USER', 'postgres')) }}"
+      password: "{{ env_var('FINANCE_PG_TRANSFORM_PASSWORD', env_var('FINANCE_PG_PASSWORD', '')) }}"
+      schema: silver
+      threads: 2

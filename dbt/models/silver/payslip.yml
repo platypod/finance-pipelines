@@ -1,0 +1,131 @@
+# GENERATED from contracts/silver.payslip.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: payslip
+  config:
+    meta:
+      data_contract: urn:platypod:finance:silver:payslip
+    materialized: table
+    contract:
+      enforced: true
+  description: Monthly payslip summary (latest file wins per period).
+  columns:
+  - name: period
+    data_type: date
+    description: First day of the pay month.
+    constraints:
+    - type: not_null
+    - type: unique
+  - name: employer_siret
+    data_type: text
+    description: Employer SIRET.
+    constraints:
+    - type: not_null
+    meta:
+      classification: internal
+  - name: gross_amount
+    data_type: numeric(12,2)
+    description: Gross pay.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: employee_contributions
+    data_type: numeric(12,2)
+    description: Total employee contributions (cotisations salariales).
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: employer_contributions
+    data_type: numeric(12,2)
+    description: Total employer contributions.
+    meta:
+      classification: confidential
+  - name: net_before_tax
+    data_type: numeric(12,2)
+    description: Net pay before income tax.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: net_social
+    data_type: numeric(12,2)
+    description: Net social amount (printed from 2024).
+    meta:
+      classification: confidential
+  - name: pas_base
+    data_type: numeric(12,2)
+    description: Withholding-tax base.
+    meta:
+      classification: confidential
+  - name: pas_rate
+    data_type: numeric(7,4)
+    description: Withholding-tax rate, percent.
+  - name: pas_amount
+    data_type: numeric(12,2)
+    description: Income tax withheld at source (PAS).
+    meta:
+      classification: confidential
+  - name: net_paid
+    data_type: numeric(12,2)
+    description: Net paid to the bank account.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: taxable_net
+    data_type: numeric(12,2)
+    description: Net taxable income of the month.
+    meta:
+      classification: confidential
+  - name: employer_cost
+    data_type: numeric(12,2)
+    description: "Total employer cost (co\xFBt global; not printed after 2025-10)."
+    meta:
+      classification: confidential
+  - name: total_paid
+    data_type: numeric(12,2)
+    description: Total paid by the employer.
+    meta:
+      classification: confidential
+  - name: hours
+    data_type: numeric(8,2)
+    description: Hours worked in the month.
+  - name: ytd_gross
+    data_type: numeric(12,2)
+    description: Year-to-date gross as printed.
+    meta:
+      classification: confidential
+  - name: ytd_taxable_net
+    data_type: numeric(12,2)
+    description: Year-to-date taxable net as printed.
+    meta:
+      classification: confidential
+  - name: leave_cp_n1_balance
+    data_type: numeric(7,2)
+    description: Paid-leave balance, previous year (days).
+  - name: leave_cp_n_balance
+    data_type: numeric(7,2)
+    description: Paid-leave balance, current year (days).
+  - name: leave_rtt_balance
+    data_type: numeric(7,2)
+    description: RTT balance (days).
+  - name: payment_date
+    data_type: date
+    description: Payment date.
+  - name: layout
+    data_type: text
+    description: Source layout.
+    constraints:
+    - type: not_null
+  - name: source
+    data_type: text
+    description: text | ocr.
+    constraints:
+    - type: not_null
+  - name: source_sha256
+    data_type: text
+    description: File this row was derived from.
+    constraints:
+    - type: not_null

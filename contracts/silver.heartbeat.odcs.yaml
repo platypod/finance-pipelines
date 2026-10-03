@@ -1,0 +1,57 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:silver:heartbeat
+name: heartbeat
+version: 1.0.0
+status: active
+domain: platform
+dataProduct: heartbeat
+description:
+  purpose: Typed, deduplicated heartbeats; canary for the bronze -> silver path.
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: silver
+schema:
+  - name: heartbeat
+    physicalType: table
+    description: One row per distinct heartbeat.
+    properties:
+      - name: beat_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: Unique id of the beat.
+      - name: beat_at
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        description: When the beat was produced.
+      - name: source
+        logicalType: string
+        physicalType: text
+        required: true
+        description: Emitting job.
+      - name: lag_seconds
+        logicalType: number
+        physicalType: numeric(12,3)
+        required: true
+        description: Seconds between production and ingestion.
+        quality:
+          - type: sql
+            description: lag cannot be negative
+            query: SELECT count(*) FROM silver.heartbeat WHERE lag_seconds < 0
+            mustBe: 0
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+slaProperties:
+  - property: frequency
+    value: 1
+    unit: day

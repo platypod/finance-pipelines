@@ -1,0 +1,36 @@
+# GENERATED from contracts/gold.contributions_monthly.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: contributions_monthly
+  config:
+    meta:
+      data_contract: urn:platypod:finance:gold:contributions_monthly
+    materialized: table
+    contract:
+      enforced: true
+  description: One row per month and category.
+  columns:
+  - name: period
+    data_type: date
+    description: First day of the pay month.
+    constraints:
+    - type: not_null
+  - name: category
+    data_type: text
+    description: Contribution category (see silver.payslip_line).
+    constraints:
+    - type: not_null
+  - name: employee_amount
+    data_type: numeric(12,2)
+    description: Employee-side deductions in the category.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: employer_amount
+    data_type: numeric(12,2)
+    description: Employer-side amounts in the category.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential

@@ -1,0 +1,8 @@
+version: 2
+sources:
+  - name: bronze
+    schema: bronze
+    tables:
+      - name: heartbeat_raw
+      - name: payslip_file
+      - name: payslip_line_raw

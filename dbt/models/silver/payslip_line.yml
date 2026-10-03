@@ -1,0 +1,74 @@
+# GENERATED from contracts/silver.payslip_line.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: payslip_line
+  config:
+    meta:
+      data_contract: urn:platypod:finance:silver:payslip_line
+    materialized: table
+    contract:
+      enforced: true
+  description: Typed table rows, classified by category.
+  columns:
+  - name: period
+    data_type: date
+    description: Pay month.
+    constraints:
+    - type: not_null
+  - name: line_no
+    data_type: integer
+    description: Row order within the payslip.
+    constraints:
+    - type: not_null
+  - name: section
+    data_type: text
+    description: brut | cotisations | other.
+    constraints:
+    - type: not_null
+  - name: label
+    data_type: text
+    description: Printed label.
+    constraints:
+    - type: not_null
+  - name: category
+    data_type: text
+    description: gross_pay | health | provident | work_accident | retirement | family
+      | unemployment | csg_crds | meal_vouchers | other_contributions | other.
+    constraints:
+    - type: not_null
+  - name: base
+    data_type: numeric(12,2)
+    description: Base amount.
+    meta:
+      classification: confidential
+  - name: rate
+    data_type: numeric(10,4)
+    description: Rate, percent.
+  - name: employee_gain
+    data_type: numeric(12,2)
+    description: Employee-side gain (pay element).
+    meta:
+      classification: confidential
+  - name: employee_deduction
+    data_type: numeric(12,2)
+    description: Employee-side deduction.
+    meta:
+      classification: confidential
+  - name: employer_base
+    data_type: numeric(12,2)
+    description: Employer base.
+    meta:
+      classification: confidential
+  - name: employer_rate
+    data_type: numeric(10,4)
+    description: Employer rate, percent.
+  - name: employer_amount
+    data_type: numeric(12,2)
+    description: Employer-side amount.
+    meta:
+      classification: confidential
+  - name: source_sha256
+    data_type: text
+    description: File this row was derived from.
+    constraints:
+    - type: not_null

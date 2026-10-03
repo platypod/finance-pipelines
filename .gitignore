@@ -9,6 +9,9 @@ build/
 dbt/.user.yml
 
 # The user's global ignore drops *.sql (database dumps). These two directories are source,
-# not dumps: hand-written migrations and DDL generated from the ODCS contracts.
+# not dumps: hand-written migrations, DDL generated from the ODCS contracts, and the dbt
+# models/macros (the transformation logic itself).
 !migrations/*.sql
 !generated/ddl/*.sql
+!dbt/models/**/*.sql
+!dbt/macros/*.sql

@@ -57,4 +57,7 @@ PAYSLIPS_SRC ?= $(HOME)/nfs/homes/pittinic/bulletins-de-salaire/
 PAYSLIPS_DST ?= $(HOME)/nfs/kubernetes/apps/finance/payslips/
 sync-payslips:                 ## mirror new payslip PDFs to where the cluster reads them (add-only, no deletes)
 	mkdir -p $(PAYSLIPS_DST)
-	rsync -rt --chmod=D755,F644 --exclude '._*' --exclude '@eaDir' --exclude '.DS_Store' --itemize-changes $(PAYSLIPS_SRC) $(PAYSLIPS_DST)
+	rsync -rt --exclude '._*' --exclude '@eaDir' --exclude '.DS_Store' --itemize-changes $(PAYSLIPS_SRC) $(PAYSLIPS_DST)
+	# world-readable: the pipeline pod runs as uid 10001 (macOS rsync has no --chmod)
+	find $(PAYSLIPS_DST) -type d -exec chmod 755 {} +
+	find $(PAYSLIPS_DST) -type f -exec chmod 644 {} +

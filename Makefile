@@ -16,7 +16,7 @@ export FINANCE_PG_INGEST_PASSWORD ?= i
 export FINANCE_PG_TRANSFORM_USER ?= finance_transform
 export FINANCE_PG_TRANSFORM_PASSWORD ?= t
 
-.PHONY: help install generate check lint test test-integration pg-up pg-down image
+.PHONY: help install generate check lint test test-integration pg-up pg-down image sync-payslips
 help:
 	@grep -E '^[a-z-]+:' Makefile | cut -d: -f1 | tr '\n' ' '; echo
 
@@ -50,3 +50,11 @@ test-integration: pg-up        ## full suite against the throwaway Postgres
 
 image:                         ## local image build
 	docker build -t finance-pipelines:dev .
+
+# The cluster nodes may not mount the Synology `homes` share (it is exported to the laptops only), so the
+# payslip archive is mirrored into the apps share, which they do mount (read-only subPath finance/payslips).
+PAYSLIPS_SRC ?= $(HOME)/nfs/homes/pittinic/bulletins-de-salaire/
+PAYSLIPS_DST ?= $(HOME)/nfs/kubernetes/apps/finance/payslips/
+sync-payslips:                 ## mirror new payslip PDFs to where the cluster reads them (add-only, no deletes)
+	mkdir -p $(PAYSLIPS_DST)
+	rsync -rt --chmod=D755,F644 --exclude '._*' --exclude '@eaDir' --exclude '.DS_Store' --itemize-changes $(PAYSLIPS_SRC) $(PAYSLIPS_DST)

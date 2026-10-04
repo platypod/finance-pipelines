@@ -82,7 +82,9 @@ def targets(settings: Settings) -> dict[Path, str]:
         dataset = contracts.dataset_of(path)
         schema, table = contracts.layer_and_table(path, settings)
         files[settings.ddl_dir / f"{dataset}.sql"] = ddl_for(settings, path)
-        if schema in DBT_LAYERS:
+        # dbt YAML only for datasets dbt actually builds: reference tables loaded by Python (bank_account,
+        # bank_rule, bank_override) have a contract and DDL but no model, and an orphan patch is a dbt warning.
+        if schema in DBT_LAYERS and (settings.dbt_dir / "models" / schema / f"{table}.sql").exists():
             files[settings.dbt_dir / "models" / schema / f"{table}.yml"] = dbt_yaml_for(settings, path)
     return files
 

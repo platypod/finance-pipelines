@@ -1,0 +1,34 @@
+# GENERATED from contracts/silver.bank_balance.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: bank_balance
+  config:
+    meta:
+      data_contract: urn:platypod:finance:silver:bank_balance
+    materialized: table
+    contract:
+      enforced: true
+  description: One row per account and export date.
+  columns:
+  - name: account
+    data_type: text
+    description: Account alias.
+    constraints:
+    - type: not_null
+  - name: as_of
+    data_type: date
+    description: Date of the balance.
+    constraints:
+    - type: not_null
+  - name: balance
+    data_type: numeric(14,2)
+    description: Balance on that date.
+    constraints:
+    - type: not_null
+    meta:
+      classification: confidential
+  - name: source_sha256
+    data_type: text
+    description: Export it came from.
+    constraints:
+    - type: not_null

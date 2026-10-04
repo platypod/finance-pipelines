@@ -1,0 +1,95 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:gold:bank_measure
+name: bank_measure
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "Monthly bank figures per person: spending and income by category, spending by necessity, month-end balances; each as the month, the calendar year to date and the rolling 12 months."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: gold
+schema:
+  - name: bank_measure
+    physicalType: table
+    description: "One row per month, measure, person, owner, item1 and item2. Dense for spend/income categories (zero months are rows)."
+    properties:
+      - name: period
+        logicalType: date
+        physicalType: date
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "First day of the month (by spend date)."
+      - name: measure
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 2
+        description: "spend | income | spend_necessity | balance."
+      - name: person
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 3
+        description: "Whose figures (login or joint)."
+      - name: owner
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 4
+        description: "Visibility principal: the metrics' owner label (login or group:<name>)."
+      - name: item1
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 5
+        description: "spend/income: category; spend_necessity: necessity; balance: account alias."
+      - name: item2
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 6
+        description: "spend/income: subcategory; otherwise ''."
+      - name: value
+        logicalType: number
+        physicalType: numeric(14,2)
+        description: "Amount for the month (spend: money out net of refunds, positive; balance: month-end)."
+        classification: confidential
+      - name: ytd_value
+        logicalType: number
+        physicalType: numeric(14,2)
+        description: "Calendar year to date. NULL for balances."
+        classification: confidential
+      - name: r12_value
+        logicalType: number
+        physicalType: numeric(14,2)
+        description: "Rolling 12 months. NULL until 12 months exist, and for balances."
+        classification: confidential
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: total spend equals minus the sum of all operations that are neither income nor excluded (transfers, investments)
+        query: SELECT CASE WHEN abs(coalesce((SELECT sum(value) FROM gold.bank_measure WHERE measure = 'spend'), 0) + coalesce((SELECT sum(t.amount) FROM silver.bank_transaction t JOIN silver.bank_transaction_category c USING (txn_id) WHERE c.category <> 'income' AND c.category <> 'transfers' AND NOT (c.category = 'savings' AND c.subcategory = 'investment')), 0)) > 0.01 THEN 1 ELSE 0 END
+        mustBe: 0
+      - type: sql
+        description: total income equals the sum of the income-category operations
+        query: SELECT CASE WHEN abs(coalesce((SELECT sum(value) FROM gold.bank_measure WHERE measure = 'income'), 0) - coalesce((SELECT sum(t.amount) FROM silver.bank_transaction t JOIN silver.bank_transaction_category c USING (txn_id) WHERE c.category = 'income'), 0)) > 0.01 THEN 1 ELSE 0 END
+        mustBe: 0
+      - type: sql
+        description: the latest month-end balance of each account equals its latest printed balance
+        query: SELECT count(*) FROM (SELECT DISTINCT ON (account) account, balance FROM silver.bank_balance ORDER BY account, as_of DESC) b JOIN (SELECT DISTINCT ON (item1) item1, value FROM gold.bank_measure WHERE measure = 'balance' ORDER BY item1, period DESC) m ON m.item1 = b.account WHERE abs(m.value - b.balance) > 0.005
+        mustBe: 0

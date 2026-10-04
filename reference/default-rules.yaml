@@ -1,0 +1,54 @@
+# Generic starter rules for common French merchants. First match wins; the private rules.yaml next to the
+# statements is consulted BEFORE these. Regexes are PostgreSQL (ARE, case-insensitive): \m \M are word
+# boundaries. They run against the cleaned merchant string (card payments) or the label (transfers, debits).
+# Keep personal knowledge (your local shops, your employer) in the private file, not here: this repo is public.
+version: 1
+rules:
+  # --- structural (by operation family) ---
+  - {id: interest, family: interest, set: {category: income, subcategory: interest}}
+  - {id: cash, family: cash, set: {category: cash, subcategory: cash_withdrawal, necessity: comfort}}
+  - {id: card-fee, family: fees, set: {category: taxes_fees, subcategory: bank_fees, necessity: essential}}
+  # --- food ---
+  - {id: meal-vouchers, label: 'ticket restaur|\mswile\M|edenred|\mtitres? restaurant', set: {category: food, subcategory: meal_vouchers, necessity: essential}}
+  - {id: vending, label: '\mselecta\M|distributeur automatique|\mvending\M', set: {category: food, subcategory: vending, necessity: comfort}}
+  - {id: fuel-before-grocers, label: '\mtotalenergies\M|\messo\M|\mshell\M|\mavia\M|certas|station[ -]service|carburant|\mbp\M station', set: {category: car, subcategory: fuel, necessity: essential}}
+  - {id: coffee-capsules, label: 'nespresso', set: {category: food, subcategory: groceries, necessity: comfort}}
+  - {id: groceries, label: 'carrefour|intermarch|leclerc|\mlidl\M|\mauchan\M|monoprix|franprix|\maldi\M|\mpicard\M|biocoop|naturalia|super ?u\M|\mu express\M|grand frais|\mcora\M|g20|supermarch|superma', set: {category: food, subcategory: groceries, necessity: essential}}
+  - {id: specialty-food, label: 'boulang|patiss|boucher|primeur|fromager|poissonn|\mpain\M|charcut|traiteur|confiserie|chocolat|epicerie|palais du fruit|fruit|cave\M|viennois', set: {category: food, subcategory: specialty_food, necessity: essential}}
+  - {id: restaurants, label: 'restaurant|resto\M|brasserie|pizz|burger|mc ?donald|\mkfc\M|subway|sushi|kebab|bistro|\mcafe\M|coffee|starbucks|deliveroo|uber ?eats|just ?eat|delicity|izakaya|ramen|nouilles|\mpasta\M|amorino|glacier|creperie', set: {category: food, subcategory: restaurants, necessity: comfort}}
+  # --- car, transport ---
+  - {id: car-tolls-parking, label: '\mvinci\M|\msanef\M|\maprr\M|cofiroute|autoroute|parking|indigo|q-?park|saemes|onepark|stationnement', set: {category: car, subcategory: parking_tolls, necessity: essential}}
+  - {id: car-maintenance, label: 'norauto|\mmidas\M|speedy|feu vert|euromaster|vulco|carglass|garage|controle technique', set: {category: car, subcategory: maintenance, necessity: essential}}
+  - {id: public-transport, label: '\mratp\M|navigo|\mastuce\M|\mtcar\M|\mtbm\M|tisseo|keolis|transdev|cityway', set: {category: transport, subcategory: public_transport, necessity: essential}}
+  - {id: train-taxi, label: '\msncf\M|trainline|ouigo|thalys|blablacar|\muber\M|\mbolt\M|\mtaxi\M|\mg7\M', set: {category: transport, subcategory: train_taxi, necessity: comfort}}
+  # --- home ---
+  - {id: utilities, label: '\medf\M|\mengie\M|veolia|\msuez\M|enedis|eau de |\mgaz\M', set: {category: home, subcategory: utilities, necessity: essential}}
+  - {id: internet-phone, label: 'bouygues|free ?mobile|freebox|\mfree\M|\morange\M|\msfr\M|\msosh\M|b&you|\movh\M', set: {category: home, subcategory: internet_phone, necessity: essential}}
+  - {id: rent-mortgage, label: '\mloyer\M|pr[eê]t immo|credit immo|echeance pret|remboursement de pr[eê]t', set: {category: home, subcategory: rent_mortgage, necessity: essential}}
+  - {id: home-insurance, label: 'assurance hab|\mmrh\M|multirisque', set: {category: home, subcategory: home_insurance, necessity: essential}}
+  - {id: car-insurance, label: 'assurance auto|assurance vehicule|auto.{0,10}assu', set: {category: car, subcategory: insurance, necessity: essential}}
+  - {id: appliances, label: 'boulanger|darty|electro ?depot|ubaldi|conforama|\mbut\M|lg electronics|\mdyson\M|dreame|roborock|irobot', set: {category: home, subcategory: appliances_furniture, necessity: comfort}}
+  - {id: furniture-diy, label: '\mikea\M|maisons? du monde|leroy ?merlin|castorama|bricolage|bricorama|truffaut|kiloutou|brico', set: {category: home, subcategory: maintenance, necessity: comfort}}
+  # --- health, insurance ---
+  - {id: health, label: 'pharmacie|parapharm|drugstore|doctolib|laborat|opticien|dentiste|medecin|\mdr\M |clinique|hopital|kine', set: {category: health, subcategory: doctors, necessity: essential}}
+  - {id: health-insurance, label: 'mutuelle|\malan\M|harmonie|malakoff|\mmgen\M|ociane', set: {category: health, subcategory: health_insurance, necessity: essential}}
+  - {id: insurance, label: '\massu|\maxa\M|\mmaif\M|macif|matmut|allianz|groupama|\mgmf\M|\mmaaf\M|aviva|generali|hiscox|leocare|assurance', set: {category: insurance, subcategory: other_insurance, necessity: essential}}
+  # --- leisure, shopping ---
+  - {id: subscriptions, label: 'netflix|spotify|disney|canal ?\+|amazon prime|prime fr|deezer|apple\.com/bill|google (one|play|storage)|youtube|openai|chatgpt|anthropic|github|icloud|dropbox|notion|1password|adobe|microsoft|playstation|sony interactive|apple .{0,6}cork', set: {category: leisure, subcategory: subscriptions, necessity: comfort}}
+  - {id: entertainment, label: 'steam|nintendo|\mxbox\M|ticketmaster|francebillet|cinema|\mugc\M|pathe|gaumont|escape', set: {category: leisure, subcategory: entertainment, necessity: comfort}}
+  - {id: culture, label: 'cultura|librairie|\mlivre|\mmusee\M|exposition|theatre|concert', set: {category: leisure, subcategory: culture, necessity: comfort}}
+  - {id: sports, label: 'decathlon|basic.?fit|fitness|\mgym\M|piscine|climb|escalade|arkose|\mstade\M|\msport', set: {category: leisure, subcategory: sports, necessity: comfort}}
+  - {id: travel, label: 'airbnb|booking|hotel|easyjet|ryanair|air france|vueling|expedia|\mibis\M|accor|campanile|camping|europcar|hertz|\mavis\M|telepher|remontee|\mski\M|val d ?.?isere', set: {category: leisure, subcategory: travel, necessity: comfort}}
+  - {id: luxury, label: 'louis vuitton|hermes|cartier|chanel|\mdior\M|gucci|prada|bijou|joaillerie|horlogerie|\mhorloge\M|\mmaje\M|sandro|zadig', set: {category: shopping, subcategory: general, necessity: luxury}}
+  - {id: clothing, label: '\mzara\M|h ?& ?m|uniqlo|kiabi|\mcelio\M|\mjules\M|primark|vinted|zalando|shein|promod|galeries lafayette|printemps|\mmango\M', set: {category: shopping, subcategory: clothing, necessity: comfort}}
+  - {id: electronics, label: '\mfnac\M|micromania|cdiscount|ldlc|materiel\.net|apple store|apple retail|\mapple\M', set: {category: shopping, subcategory: electronics, necessity: comfort}}
+  - {id: shopping-marketplaces, label: '\mamazon\M|\metsy\M|leboncoin|\mebay\M|aliexpress', set: {category: shopping, subcategory: general, necessity: comfort}}
+  - {id: personal-care, label: 'coiffeur|barbier|salon de|institut|\mspa\M|beaute|yves rocher|nocibe|marionnaud|sephora', set: {category: personal, subcategory: personal_care, necessity: comfort}}
+  - {id: pets, label: 'animalis|vetopharma|veterinaire|\mvet\M|croquettes|zooplus|truffaut', set: {category: personal, subcategory: pets, necessity: essential}}
+  # --- taxes, fees, donations ---
+  - {id: taxes-fines, label: 'dgfip|\mimp[oô]ts?\M|direction g[eé]n[eé]rale des finances|tresor public|amende|\mants\M|taxe', set: {category: taxes_fees, subcategory: taxes, necessity: essential}}
+  - {id: bank-fees, label: 'frais carte|frais |cotisation carte|offre compte|commission', set: {category: taxes_fees, subcategory: bank_fees, necessity: essential}}
+  - {id: donations, label: '\maides\M|croix rouge|medecins sans|unicef|\mwwf\M|restos du coeur|secours', set: {category: taxes_fees, subcategory: donations, necessity: comfort}}
+  # --- income ---
+  - {id: salary, family: transfer_in, label: 'salaire|\mpaie\M|\mpaye\M', set: {category: income, subcategory: salary}}
+  - {id: reimbursement, family: refund, direction: credit, set: {category: income, subcategory: reimbursement}}

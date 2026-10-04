@@ -1,0 +1,39 @@
+# GENERATED from contracts/silver.bank_transaction_category.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: bank_transaction_category
+  config:
+    meta:
+      data_contract: urn:platypod:finance:silver:bank_transaction_category
+    materialized: table
+    contract:
+      enforced: true
+  description: One row per transaction.
+  columns:
+  - name: txn_id
+    data_type: text
+    description: Transaction.
+    constraints:
+    - type: not_null
+    - type: unique
+  - name: category
+    data_type: text
+    description: Category (taxonomy).
+    constraints:
+    - type: not_null
+  - name: subcategory
+    data_type: text
+    description: Subcategory (taxonomy).
+    constraints:
+    - type: not_null
+  - name: necessity
+    data_type: text
+    description: essential | comfort | luxury.
+  - name: source
+    data_type: text
+    description: override | transfer_pair | rule | default.
+    constraints:
+    - type: not_null
+  - name: rule_id
+    data_type: text
+    description: Rule that matched.

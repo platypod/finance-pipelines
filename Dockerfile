@@ -19,6 +19,7 @@ COPY contracts/ ./contracts/
 COPY migrations/ ./migrations/
 COPY generated/ ./generated/
 COPY dbt/ ./dbt/
+COPY reference/ ./reference/
 
 # dbt writes target/ and logs/ under temp dirs (see dbt.py); the app dir can stay read-only.
 RUN useradd --uid 10001 --no-create-home pipeline

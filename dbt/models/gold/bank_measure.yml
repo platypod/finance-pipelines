@@ -1,0 +1,60 @@
+# GENERATED from contracts/gold.bank_measure.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: bank_measure
+  config:
+    meta:
+      data_contract: urn:platypod:finance:gold:bank_measure
+    materialized: table
+    contract:
+      enforced: true
+  description: One row per month, measure, person, owner, item1 and item2. Dense for
+    spend/income categories (zero months are rows).
+  columns:
+  - name: period
+    data_type: date
+    description: First day of the month (by spend date).
+    constraints:
+    - type: not_null
+  - name: measure
+    data_type: text
+    description: spend | income | spend_necessity | balance.
+    constraints:
+    - type: not_null
+  - name: person
+    data_type: text
+    description: Whose figures (login or joint).
+    constraints:
+    - type: not_null
+  - name: owner
+    data_type: text
+    description: 'Visibility principal: the metrics'' owner label (login or group:<name>).'
+    constraints:
+    - type: not_null
+  - name: item1
+    data_type: text
+    description: 'spend/income: category; spend_necessity: necessity; balance: account
+      alias.'
+    constraints:
+    - type: not_null
+  - name: item2
+    data_type: text
+    description: 'spend/income: subcategory; otherwise ''''.'
+    constraints:
+    - type: not_null
+  - name: value
+    data_type: numeric(14,2)
+    description: 'Amount for the month (spend: money out net of refunds, positive;
+      balance: month-end).'
+    meta:
+      classification: confidential
+  - name: ytd_value
+    data_type: numeric(14,2)
+    description: Calendar year to date. NULL for balances.
+    meta:
+      classification: confidential
+  - name: r12_value
+    data_type: numeric(14,2)
+    description: Rolling 12 months. NULL until 12 months exist, and for balances.
+    meta:
+      classification: confidential

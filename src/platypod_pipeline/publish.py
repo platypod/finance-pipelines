@@ -1,4 +1,4 @@
-"""Publish gold payslip figures as OTLP gauges so the *shared* Grafana can show them.
+"""Publish gold figures (payslips, bank) as OTLP gauges so the *shared* Grafana can show them.
 
 Postgres stays the source of truth. The published copy lives in the `finance` Mimir
 tenant, where every series carries `owner=<login>`: the observability scope shim then
@@ -68,9 +68,13 @@ def _kv(key: str, value: str) -> KeyValue:
     return KeyValue(key=key, value=AnyValue(string_value=value))
 
 
+def _check_owner(owner: str) -> None:
+    if not owner or owner.startswith("_"):
+        raise ValueError(f"refusing to publish with owner={owner!r}: must be a login or group:<name>")
+
+
 class _Builder:
-    def __init__(self, owner: str):
-        self.owner = owner
+    def __init__(self):
         self.request = ExportMetricsServiceRequest()
         rm = self.request.resource_metrics.add()
         rm.resource.CopyFrom(Resource(attributes=[_kv("service.name", "finance-payslips")]))
@@ -79,9 +83,10 @@ class _Builder:
         self.metrics: dict[str, object] = {}
         self.points = 0
 
-    def add(self, name: str, unit: str, period: dt.date, value, **attrs: str) -> None:
+    def add(self, name: str, unit: str, period: dt.date, value, *, owner: str, **attrs: str) -> None:
         if value is None:
             return
+        _check_owner(owner)
         metric = self.metrics.get(name)
         if metric is None:
             metric = self.scope.metrics.add()
@@ -90,22 +95,26 @@ class _Builder:
         dp = metric.gauge.data_points.add()
         dp.time_unix_nano = sample_time(period)
         dp.as_double = float(value if not isinstance(value, Decimal) else float(value))
-        dp.attributes.append(_kv("owner", self.owner))
+        dp.attributes.append(_kv("owner", owner))
         for k, v in attrs.items():
             dp.attributes.append(_kv(k, v))
         self.points += 1
 
 
 def build_request(owner: str, income: list[dict], measures: list[dict]) -> tuple[ExportMetricsServiceRequest, int]:
-    """income: gold.income_monthly rows; measures: gold.payslip_measure rows."""
-    if not owner or owner.startswith("_"):
-        raise ValueError(f"refusing to publish with owner={owner!r}: must be a real login")
-    b = _Builder(owner)
+    """Payslips. income: gold.income_monthly rows; measures: gold.payslip_measure rows.
+
+    A payslip is personal: the series' owner (who may see it) and its person (whose it is, the dashboards'
+    filter) are both the login of the person it belongs to.
+    """
+    _check_owner(owner)
+    b = _Builder()
+    who = {"owner": owner, "person": owner}
     for row in income:
         for name, (unit, column) in INCOME_METRICS.items():
-            b.add(name, unit, row["period"], row[column])
+            b.add(name, unit, row["period"], row[column], **who)
         for kind, column in LEAVE_COLUMNS.items():
-            b.add(LEAVE_METRIC, "d", row["period"], row[column], kind=kind)
+            b.add(LEAVE_METRIC, "d", row["period"], row[column], kind=kind, **who)
     for row in measures:
         measure, item, side = row["measure"], row["item"], row["side"]
         if measure in FLOW_MEASURES:
@@ -117,7 +126,26 @@ def build_request(owner: str, income: list[dict], measures: list[dict]) -> tuple
         else:
             raise ValueError(f"unknown measure {measure!r} in gold.payslip_measure")
         for prefix, column in VIEWS:
-            b.add(f"finance.payslip.{prefix}{base}", "EUR", row["period"], row[column], **attrs)
+            b.add(f"finance.payslip.{prefix}{base}", "EUR", row["period"], row[column], **who, **attrs)
+    return b.request, b.points
+
+
+def build_bank_request(measures: list[dict]) -> tuple[ExportMetricsServiceRequest, int]:
+    """Bank. measures: gold.bank_measure rows. Each row carries its own owner (visibility) and person."""
+    b = _Builder()
+    for row in measures:
+        measure, who = row["measure"], {"owner": row["owner"], "person": row["person"]}
+        if measure == "balance":
+            b.add("finance.bank.balance_eur", "EUR", row["period"], row["value"], account=row["item1"], **who)
+            continue
+        if measure in ("spend", "income"):
+            base, attrs = f"{measure}_eur", {"category": row["item1"], "subcategory": row["item2"]}
+        elif measure == "spend_necessity":
+            base, attrs = "spend_necessity_eur", {"necessity": row["item1"]}
+        else:
+            raise ValueError(f"unknown measure {measure!r} in gold.bank_measure")
+        for prefix, column in VIEWS:
+            b.add(f"finance.bank.{prefix}{base}", "EUR", row["period"], row[column], **who, **attrs)
     return b.request, b.points
 
 
@@ -128,15 +156,9 @@ def _rows(settings: Settings, sql: str) -> list[dict]:
         return [dict(zip(names, r)) for r in cur.fetchall()]
 
 
-def publish(settings: Settings, *, timeout: float = 30.0) -> int:
-    """Read gold, push to the gateway. Returns the number of data points sent."""
-    if not settings.owner:
-        raise RuntimeError("FINANCE_OWNER is not set")
+def _send(settings: Settings, request: ExportMetricsServiceRequest, points: int, what: str, timeout: float) -> int:
     if not settings.otlp_endpoint:
         raise RuntimeError("OTEL_EXPORTER_OTLP_ENDPOINT is not set")
-    income = _rows(settings, "select * from gold.income_monthly order by period")
-    measures = _rows(settings, "select * from gold.payslip_measure order by period, measure, item, side")
-    request, points = build_request(settings.owner, income, measures)
     url = settings.otlp_endpoint.rstrip("/") + "/v1/metrics"
     resp = requests.post(url, data=request.SerializeToString(), headers={"Content-Type": "application/x-protobuf"}, timeout=timeout)
     resp.raise_for_status()
@@ -147,5 +169,24 @@ def publish(settings: Settings, *, timeout: float = 30.0) -> int:
             f"gateway rejected {reply.partial_success.rejected_data_points} of {points} data points: "
             f"{reply.partial_success.error_message}"
         )
-    log.info("published %d data points (%d metrics) for owner %s", points, len(request.resource_metrics[0].scope_metrics[0].metrics), settings.owner)
+    log.info("published %d %s data points (%d metrics)", points, what, len(request.resource_metrics[0].scope_metrics[0].metrics))
     return points
+
+
+def publish_payslips(settings: Settings, *, timeout: float = 30.0) -> int:
+    """Read the payslip gold tables, push to the gateway. Returns the number of data points sent."""
+    if not settings.owner:
+        raise RuntimeError("FINANCE_OWNER is not set")
+    income = _rows(settings, "select * from gold.income_monthly order by period")
+    measures = _rows(settings, "select * from gold.payslip_measure order by period, measure, item, side")
+    request, points = build_request(settings.owner, income, measures)
+    return _send(settings, request, points, f"payslip (owner {settings.owner})", timeout)
+
+
+publish = publish_payslips  # historical name
+
+
+def publish_bank(settings: Settings, *, timeout: float = 30.0) -> int:
+    measures = _rows(settings, "select * from gold.bank_measure order by period, measure, person, item1, item2")
+    request, points = build_bank_request(measures)
+    return _send(settings, request, points, "bank", timeout)

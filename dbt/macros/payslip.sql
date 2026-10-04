@@ -30,3 +30,11 @@
     else 'other'
   end
 {%- endmacro %}
+
+
+{# dd/mm in a given year -> date, or NULL when it does not exist (30/02, 31/04). #}
+{% macro safe_date(year, month, day) -%}
+  case when {{ month }} between 1 and 12 and {{ day }} between 1 and 31
+        and {{ day }} <= extract(day from (make_date(({{ year }})::int, ({{ month }})::int, 1) + interval '1 month' - interval '1 day'))
+       then make_date(({{ year }})::int, ({{ month }})::int, ({{ day }})::int) end
+{%- endmacro %}

@@ -22,7 +22,7 @@ from .. import db
 from ..config import Settings
 from ..dbt import run_dbt
 from ..lineage import Dataset
-from ..publish import publish
+from ..publish import publish_payslips
 from ..payslips import PARSER_VERSION
 from ..payslips.parse import parse_pdf
 from ..runner import RunContext, pipeline_run
@@ -139,7 +139,7 @@ def run(settings: Settings | None = None) -> None:
         # Only after the gate: nothing that failed its contracts is ever published.
         if settings.owner and settings.otlp_endpoint:
             with run.step("publish"):
-                publish(settings)
+                publish_payslips(settings)
         else:
             log.info("FINANCE_OWNER / OTEL_EXPORTER_OTLP_ENDPOINT not set: skipping the Mimir publish step")
         # A `review` file at the END of the series is not a gap, so the contract's no-missing-month rule stays

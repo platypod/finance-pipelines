@@ -1,0 +1,64 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:silver:bank_transaction_category
+name: bank_transaction_category
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "Classification of every bank operation: override, internal-transfer pairing, rule, or default."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: silver
+schema:
+  - name: bank_transaction_category
+    physicalType: table
+    description: "One row per transaction."
+    properties:
+      - name: txn_id
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "Transaction."
+      - name: category
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Category (taxonomy)."
+      - name: subcategory
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Subcategory (taxonomy)."
+      - name: necessity
+        logicalType: string
+        physicalType: text
+        description: "essential | comfort | luxury."
+      - name: source
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "override | transfer_pair | rule | default."
+      - name: rule_id
+        logicalType: string
+        physicalType: text
+        description: "Rule that matched."
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: every transaction is classified, with a (category, subcategory) pair of the taxonomy
+        query: SELECT count(*) FROM silver.bank_transaction t LEFT JOIN silver.bank_transaction_category c USING (txn_id) WHERE c.txn_id IS NULL OR (c.category, c.subcategory) NOT IN (('food','groceries'), ('food','specialty_food'), ('food','restaurants'), ('food','vending'), ('food','meal_vouchers'), ('home','rent_mortgage'), ('home','utilities'), ('home','internet_phone'), ('home','maintenance'), ('home','appliances_furniture'), ('home','home_insurance'), ('car','fuel'), ('car','insurance'), ('car','maintenance'), ('car','parking_tolls'), ('transport','public_transport'), ('transport','train_taxi'), ('health','pharmacy'), ('health','doctors'), ('health','health_insurance'), ('insurance','other_insurance'), ('leisure','culture'), ('leisure','sports'), ('leisure','travel'), ('leisure','subscriptions'), ('leisure','entertainment'), ('shopping','clothing'), ('shopping','electronics'), ('shopping','gifts'), ('shopping','general'), ('personal','personal_care'), ('personal','pets'), ('income','salary'), ('income','reimbursement'), ('income','other_income'), ('income','interest'), ('taxes_fees','taxes'), ('taxes_fees','bank_fees'), ('taxes_fees','donations'), ('cash','cash_withdrawal'), ('savings','investment'), ('transfers','internal'), ('transfers','to_others'), ('transfers','from_others'), ('uncategorized','uncategorized'))
+        mustBe: 0
+      - type: sql
+        description: paired internal transfers cancel out (money out of one own account is money into another)
+        query: SELECT count(*) FROM (SELECT sum(t.amount) AS s FROM silver.bank_transaction t JOIN silver.bank_transaction_category c USING (txn_id) WHERE c.source = 'transfer_pair') x WHERE abs(coalesce(s, 0)) > 0.005
+        mustBe: 0

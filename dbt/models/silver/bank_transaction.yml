@@ -1,0 +1,85 @@
+# GENERATED from contracts/silver.bank_transaction.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: bank_transaction
+  config:
+    meta:
+      data_contract: urn:platypod:finance:silver:bank_transaction
+    materialized: table
+    contract:
+      enforced: true
+  description: Identical operations within a day are kept (occurrence index); overlapping
+    exports collapse to one row.
+  columns:
+  - name: txn_id
+    data_type: text
+    description: 'Stable id: hash of account, dates, label, amount and occurrence.'
+    constraints:
+    - type: not_null
+    - type: unique
+  - name: account
+    data_type: text
+    description: Account alias.
+    constraints:
+    - type: not_null
+  - name: person
+    data_type: text
+    description: Whose account (login or joint).
+    constraints:
+    - type: not_null
+  - name: visibility
+    data_type: text
+    description: Who may see it (login or group:<name>).
+    constraints:
+    - type: not_null
+  - name: booking_date
+    data_type: date
+    description: Booking date.
+    constraints:
+    - type: not_null
+  - name: value_date
+    data_type: date
+    description: Value date.
+    constraints:
+    - type: not_null
+  - name: spend_date
+    data_type: date
+    description: 'Date used for reporting: the purchase date printed on card payments,
+      else the booking date.'
+    constraints:
+    - type: not_null
+  - name: amount
+    data_type: numeric(12,2)
+    description: 'Signed amount: negative = money out.'
+    constraints:
+    - type: not_null
+    meta:
+      classification: restricted
+  - name: label
+    data_type: text
+    description: Operation label.
+    constraints:
+    - type: not_null
+    meta:
+      classification: restricted
+  - name: label_clean
+    data_type: text
+    description: Label with card prefix, date and noise removed (what rules match).
+    constraints:
+    - type: not_null
+    meta:
+      classification: restricted
+  - name: family
+    data_type: text
+    description: card | direct_debit | transfer_in | transfer_out | cash | refund
+      | interest | fees | payment | other.
+    constraints:
+    - type: not_null
+  - name: card_last4
+    data_type: text
+    description: Last 4 digits of the card used.
+  - name: occurrence
+    data_type: integer
+    description: 1-based index among identical operations of the same day.
+    constraints:
+    - type: not_null

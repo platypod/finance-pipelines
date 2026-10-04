@@ -1,0 +1,85 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:silver:bank_rule
+name: bank_rule
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "Classification rules (private ones first, then the generic ones), copied from the YAML files on every run."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: silver
+schema:
+  - name: bank_rule
+    physicalType: table
+    description: "One row per rule; priority is the evaluation order."
+    properties:
+      - name: priority
+        logicalType: integer
+        physicalType: integer
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "Evaluation order (1 = first)."
+      - name: rule_id
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Rule id."
+      - name: family
+        logicalType: string
+        physicalType: text
+        description: "Operation family condition."
+      - name: direction
+        logicalType: string
+        physicalType: text
+        description: "debit | credit condition."
+      - name: label_regex
+        logicalType: string
+        physicalType: text
+        description: "PostgreSQL regex condition on the cleaned label."
+      - name: amount_min
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: "Minimum absolute amount."
+      - name: amount_max
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: "Maximum absolute amount."
+      - name: account
+        logicalType: string
+        physicalType: text
+        description: "Account alias condition."
+      - name: category
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Category to assign."
+      - name: subcategory
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Subcategory to assign."
+      - name: necessity
+        logicalType: string
+        physicalType: text
+        description: "essential | comfort | luxury."
+      - name: origin
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "private | default."
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: every rule assigns a (category, subcategory) pair of the taxonomy
+        query: SELECT count(*) FROM silver.bank_rule WHERE (category, subcategory) NOT IN (('food','groceries'), ('food','specialty_food'), ('food','restaurants'), ('food','vending'), ('food','meal_vouchers'), ('home','rent_mortgage'), ('home','utilities'), ('home','internet_phone'), ('home','maintenance'), ('home','appliances_furniture'), ('home','home_insurance'), ('car','fuel'), ('car','insurance'), ('car','maintenance'), ('car','parking_tolls'), ('transport','public_transport'), ('transport','train_taxi'), ('health','pharmacy'), ('health','doctors'), ('health','health_insurance'), ('insurance','other_insurance'), ('leisure','culture'), ('leisure','sports'), ('leisure','travel'), ('leisure','subscriptions'), ('leisure','entertainment'), ('shopping','clothing'), ('shopping','electronics'), ('shopping','gifts'), ('shopping','general'), ('personal','personal_care'), ('personal','pets'), ('income','salary'), ('income','reimbursement'), ('income','other_income'), ('income','interest'), ('taxes_fees','taxes'), ('taxes_fees','bank_fees'), ('taxes_fees','donations'), ('cash','cash_withdrawal'), ('savings','investment'), ('transfers','internal'), ('transfers','to_others'), ('transfers','from_others'), ('uncategorized','uncategorized'))
+        mustBe: 0

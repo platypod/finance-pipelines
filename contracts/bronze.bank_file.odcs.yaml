@@ -1,0 +1,89 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:bronze:bank_file
+name: bank_file
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "As-received record of every bank statement CSV, with the accounts it contains. Only the last 4 digits of an account number and no holder name are ever kept."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: bronze
+schema:
+  - name: bank_file
+    physicalType: table
+    description: "One row per distinct file content (sha256)."
+    properties:
+      - name: sha256
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "SHA-256 of the file content (idempotency key)."
+      - name: source_path
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Path relative to the statements directory."
+        classification: internal
+      - name: size_bytes
+        logicalType: integer
+        physicalType: bigint
+        required: true
+        description: "File size."
+      - name: file_mtime
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        description: "File modification time."
+      - name: bank
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Detected bank: ca | unknown."
+      - name: exported_on
+        logicalType: date
+        physicalType: date
+        description: "Download date printed in the export."
+      - name: parser_version
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Version of the parser that produced the rows."
+      - name: status
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "parsed | review (warnings) | unsupported (not a known export)."
+      - name: warnings
+        logicalType: object
+        physicalType: jsonb
+        required: true
+        description: "Parser warnings."
+      - name: accounts
+        logicalType: object
+        physicalType: jsonb
+        required: true
+        description: "Per account: kind, last4, balance, balance_date, period, row count."
+        classification: restricted
+      - name: _ingested_at
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        description: "When the row landed in bronze (lineage column)."
+      - name: _run_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+        description: "Pipeline run that ingested the row (lineage column)."
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0

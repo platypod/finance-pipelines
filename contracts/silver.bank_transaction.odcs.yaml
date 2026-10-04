@@ -1,0 +1,103 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:silver:bank_transaction
+name: bank_transaction
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "One typed, de-duplicated row per bank operation across all exports."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: silver
+schema:
+  - name: bank_transaction
+    physicalType: table
+    description: "Identical operations within a day are kept (occurrence index); overlapping exports collapse to one row."
+    properties:
+      - name: txn_id
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "Stable id: hash of account, dates, label, amount and occurrence."
+      - name: account
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Account alias."
+      - name: person
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Whose account (login or joint)."
+      - name: visibility
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Who may see it (login or group:<name>)."
+      - name: booking_date
+        logicalType: date
+        physicalType: date
+        required: true
+        description: "Booking date."
+      - name: value_date
+        logicalType: date
+        physicalType: date
+        required: true
+        description: "Value date."
+      - name: spend_date
+        logicalType: date
+        physicalType: date
+        required: true
+        description: "Date used for reporting: the purchase date printed on card payments, else the booking date."
+      - name: amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: "Signed amount: negative = money out."
+        classification: restricted
+      - name: label
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Operation label."
+        classification: restricted
+      - name: label_clean
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Label with card prefix, date and noise removed (what rules match)."
+        classification: restricted
+      - name: family
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "card | direct_debit | transfer_in | transfer_out | cash | refund | interest | fees | payment | other."
+      - name: card_last4
+        logicalType: string
+        physicalType: text
+        description: "Last 4 digits of the card used."
+      - name: occurrence
+        logicalType: integer
+        physicalType: integer
+        required: true
+        description: "1-based index among identical operations of the same day."
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: no zero-amount operation
+        query: SELECT count(*) FROM silver.bank_transaction WHERE amount = 0
+        mustBe: 0
+      - type: sql
+        description: a card purchase is never dated after its booking
+        query: SELECT count(*) FROM silver.bank_transaction WHERE spend_date > booking_date
+        mustBe: 0

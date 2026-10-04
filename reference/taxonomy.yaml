@@ -1,0 +1,23 @@
+# Controlled vocabulary for classified bank transactions. Rules and overrides may only use these values;
+# the gold contract and the dashboards group by them. Extend here (and in the contracts) deliberately.
+necessity: [essential, comfort, luxury]   # a judgement about the purchase, set per rule/override, optional
+categories:
+  food: [groceries, specialty_food, restaurants, vending, meal_vouchers]
+  home: [rent_mortgage, utilities, internet_phone, maintenance, appliances_furniture, home_insurance]
+  car: [fuel, insurance, maintenance, parking_tolls]
+  transport: [public_transport, train_taxi]
+  health: [pharmacy, doctors, health_insurance]
+  insurance: [other_insurance]
+  leisure: [culture, sports, travel, subscriptions, entertainment]
+  shopping: [clothing, electronics, gifts, general]
+  personal: [personal_care, pets]
+  income: [salary, reimbursement, other_income, interest]
+  taxes_fees: [taxes, bank_fees, donations]
+  cash: [cash_withdrawal]
+  savings: [investment]                   # money moved to investments: not consumption, not income
+  transfers: [internal, to_others, from_others]   # internal = between your own accounts; to/from_others = to/from another person
+                                                  # (e.g. the other holder): all three are excluded from spend and income
+                                                  # by default and listed for review, never silently dropped
+  uncategorized: [uncategorized]
+# Excluded from both spend and income (they are movements of your own money):
+excluded: [[transfers, internal], [transfers, to_others], [transfers, from_others], [savings, investment]]

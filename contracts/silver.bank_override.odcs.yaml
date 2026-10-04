@@ -1,0 +1,68 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:silver:bank_override
+name: bank_override
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "Per-transaction classification overrides, copied from the private overrides.csv on every run."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: silver
+schema:
+  - name: bank_override
+    physicalType: table
+    description: "One row per override line."
+    properties:
+      - name: line_no
+        logicalType: integer
+        physicalType: integer
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "Line in overrides.csv."
+      - name: txn_id
+        logicalType: string
+        physicalType: text
+        description: "Target transaction id."
+      - name: account
+        logicalType: string
+        physicalType: text
+        description: "Account alias condition."
+      - name: booking_date
+        logicalType: date
+        physicalType: date
+        description: "Booking date condition."
+      - name: amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        description: "Absolute amount condition."
+      - name: label_contains
+        logicalType: string
+        physicalType: text
+        description: "Substring of the label."
+      - name: category
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Category to assign."
+      - name: subcategory
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Subcategory to assign."
+      - name: necessity
+        logicalType: string
+        physicalType: text
+        description: "essential | comfort | luxury."
+    quality:
+      - type: sql
+        description: every override assigns a (category, subcategory) pair of the taxonomy
+        query: SELECT count(*) FROM silver.bank_override WHERE (category, subcategory) NOT IN (('food','groceries'), ('food','specialty_food'), ('food','restaurants'), ('food','vending'), ('food','meal_vouchers'), ('home','rent_mortgage'), ('home','utilities'), ('home','internet_phone'), ('home','maintenance'), ('home','appliances_furniture'), ('home','home_insurance'), ('car','fuel'), ('car','insurance'), ('car','maintenance'), ('car','parking_tolls'), ('transport','public_transport'), ('transport','train_taxi'), ('health','pharmacy'), ('health','doctors'), ('health','health_insurance'), ('insurance','other_insurance'), ('leisure','culture'), ('leisure','sports'), ('leisure','travel'), ('leisure','subscriptions'), ('leisure','entertainment'), ('shopping','clothing'), ('shopping','electronics'), ('shopping','gifts'), ('shopping','general'), ('personal','personal_care'), ('personal','pets'), ('income','salary'), ('income','reimbursement'), ('income','other_income'), ('income','interest'), ('taxes_fees','taxes'), ('taxes_fees','bank_fees'), ('taxes_fees','donations'), ('cash','cash_withdrawal'), ('savings','investment'), ('transfers','internal'), ('transfers','to_others'), ('transfers','from_others'), ('uncategorized','uncategorized'))
+        mustBe: 0

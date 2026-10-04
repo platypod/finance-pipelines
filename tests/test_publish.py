@@ -40,12 +40,12 @@ def test_every_point_carries_the_owner_and_nulls_are_skipped():
         ],
     )
     got = points(req)
-    assert all(attrs["owner"] == "alice" for series in got.values() for _, _, attrs in series)
+    assert all(attrs["owner"] == "alice" and attrs["person"] == "alice" for series in got.values() for _, _, attrs in series)
     assert [v for _, v, _ in got["finance.payslip.gross_eur"]] == [5000.0, 5100.0]
     assert [v for _, v, _ in got["finance.payslip.ytd_gross_eur"]] == [5000.0, 10100.0]
     assert "finance.payslip.r12_gross_eur" not in got  # NULL until 12 months exist
     assert not any("employer_cost" in name for name in got)
-    assert got["finance.payslip.leave_days"] == [(pub.sample_time(feb), 4.5, {"owner": "alice", "kind": "rtt"})]
+    assert got["finance.payslip.leave_days"] == [(pub.sample_time(feb), 4.5, {"owner": "alice", "person": "alice", "kind": "rtt"})]
     assert n == sum(len(v) for v in got.values())
 
 
@@ -61,9 +61,9 @@ def test_pay_elements_and_contributions_are_published_in_every_view_zeros_includ
     )
     got = points(req)
     # a zero is a real sample: without it a carried-forward series would show last month's amount
-    assert got["finance.payslip.pay_element_eur"] == [(pub.sample_time(jan), 0.0, {"owner": "alice", "element": "bonus"})]
+    assert got["finance.payslip.pay_element_eur"] == [(pub.sample_time(jan), 0.0, {"owner": "alice", "person": "alice", "element": "bonus"})]
     assert got["finance.payslip.r12_pay_element_eur"][0][1] == 1200.0
-    assert got["finance.payslip.ytd_contribution_eur"] == [(pub.sample_time(jan), 25.0, {"owner": "alice", "category": "health", "side": "employee"})]
+    assert got["finance.payslip.ytd_contribution_eur"] == [(pub.sample_time(jan), 25.0, {"owner": "alice", "person": "alice", "category": "health", "side": "employee"})]
 
 
 @pytest.mark.parametrize("owner", ["", "_shared", "_admin"])
@@ -87,3 +87,41 @@ def test_metric_catalog_matches_the_gold_contracts():
 
     assert {c for _, c in pub.INCOME_METRICS.values()} | set(pub.LEAVE_COLUMNS.values()) <= columns("gold.income_monthly")
     assert {c for _, c in pub.VIEWS} | {"period", "measure", "item", "side"} <= columns("gold.payslip_measure")
+
+
+def bank_row(period, measure, person, owner, item1="", item2="", value=None, ytd=None, r12=None):
+    return {"period": period, "measure": measure, "person": person, "owner": owner, "item1": item1, "item2": item2,
+            "value": value, "ytd_value": ytd, "r12_value": r12}
+
+
+def test_bank_series_carry_their_own_owner_and_person():
+    jan = dt.date(2026, 1, 1)
+    req, n = pub.build_bank_request([
+        bank_row(jan, "spend", "alice", "group:finance", "food", "groceries", Decimal("300"), Decimal("300")),
+        bank_row(jan, "spend", "joint", "group:finance", "home", "utilities", Decimal("80"), Decimal("80"), Decimal("960")),
+        bank_row(jan, "spend_necessity", "alice", "alice", "luxury", "", Decimal("50"), Decimal("50")),
+        bank_row(jan, "balance", "alice", "alice", "ca-alice-current", "", Decimal("1500")),
+        bank_row(jan, "income", "alice", "group:finance", "income", "salary", Decimal("3500"), Decimal("3500")),
+    ])
+    got = points(req)
+    assert got["finance.bank.spend_eur"][0][2] == {"owner": "group:finance", "person": "alice", "category": "food", "subcategory": "groceries"}
+    assert got["finance.bank.spend_eur"][1][2]["person"] == "joint"
+    assert got["finance.bank.r12_spend_eur"][0][1] == 960.0 and len(got["finance.bank.r12_spend_eur"]) == 1  # NULL r12 skipped
+    assert got["finance.bank.spend_necessity_eur"][0][2] == {"owner": "alice", "person": "alice", "necessity": "luxury"}
+    assert got["finance.bank.balance_eur"] == [(pub.sample_time(jan), 1500.0, {"owner": "alice", "person": "alice", "account": "ca-alice-current"})]
+    assert "finance.bank.ytd_balance_eur" not in got  # a balance is a stock, not a flow: one view only
+    assert n == sum(len(v) for v in got.values())
+
+
+@pytest.mark.parametrize("owner", ["", "_shared", "_admin"])
+def test_bank_publication_refuses_a_non_concrete_owner(owner):
+    with pytest.raises(ValueError):
+        pub.build_bank_request([bank_row(dt.date(2026, 1, 1), "spend", "alice", owner, "food", "groceries", Decimal("1"))])
+
+
+def test_no_label_or_merchant_can_reach_the_metrics():
+    """Row-level data stays in Postgres: the bank request is built from gold aggregates only."""
+    import inspect
+
+    src = inspect.getsource(pub.build_bank_request)
+    assert "label" not in src.replace("label_", "") and "merchant" not in src

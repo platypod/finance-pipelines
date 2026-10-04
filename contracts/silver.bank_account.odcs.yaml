@@ -1,0 +1,66 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:silver:bank_account
+name: bank_account
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "Statement accounts and who they belong to, copied from the private accounts.yaml on every run."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: silver
+schema:
+  - name: bank_account
+    physicalType: table
+    description: "One row per mapped account."
+    properties:
+      - name: alias
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "Account alias (shown in dashboards)."
+      - name: bank
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Bank code (ca)."
+      - name: last4
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Last 4 digits of the account number."
+      - name: kind
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "current | savings."
+      - name: person
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Whose account it is: a login, or 'joint'. The dashboards' person filter."
+      - name: holders
+        logicalType: string
+        physicalType: text
+        description: "Comma-separated holders (documentation)."
+      - name: visibility
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Who may see this account's figures: a login or group:<name> (becomes the metrics' owner label)."
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: a (bank, last4) pair identifies one account
+        query: SELECT count(*) FROM (SELECT bank, last4 FROM silver.bank_account GROUP BY 1, 2 HAVING count(*) > 1) d
+        mustBe: 0

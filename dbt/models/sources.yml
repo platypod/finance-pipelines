@@ -6,3 +6,12 @@ sources:
       - name: heartbeat_raw
       - name: payslip_file
       - name: payslip_line_raw
+      - name: bank_file
+      - name: bank_transaction_raw
+  - name: silver
+    schema: silver
+    description: Reference tables loaded by the bank pipeline from the private YAML/CSV files (not dbt models).
+    tables:
+      - name: bank_account
+      - name: bank_rule
+      - name: bank_override

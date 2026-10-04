@@ -1,0 +1,55 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:silver:bank_balance
+name: bank_balance
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "Account balance printed in each statement export."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: silver
+schema:
+  - name: bank_balance
+    physicalType: table
+    description: "One row per account and export date."
+    properties:
+      - name: account
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "Account alias."
+      - name: as_of
+        logicalType: date
+        physicalType: date
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 2
+        description: "Date of the balance."
+      - name: balance
+        logicalType: number
+        physicalType: numeric(14,2)
+        required: true
+        description: "Balance on that date."
+        classification: confidential
+      - name: source_sha256
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Export it came from."
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: between two exports of an account, the balance moved by exactly the operations booked in between
+        query: SELECT count(*) FROM (SELECT b.balance - p.balance AS moved, (SELECT coalesce(sum(t.amount), 0) FROM silver.bank_transaction t WHERE t.account = b.account AND t.booking_date > p.as_of AND t.booking_date <= b.as_of) AS ops FROM silver.bank_balance b JOIN LATERAL (SELECT pb.as_of, pb.balance FROM silver.bank_balance pb WHERE pb.account = b.account AND pb.as_of < b.as_of ORDER BY pb.as_of DESC LIMIT 1) p ON true) x WHERE abs(moved - ops) > 0.005
+        mustBe: 0

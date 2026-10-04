@@ -1,0 +1,83 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:bronze:bank_transaction_raw
+name: bank_transaction_raw
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "As-received statement rows."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: bronze
+schema:
+  - name: bank_transaction_raw
+    physicalType: table
+    description: "One row per printed operation; values are raw strings."
+    properties:
+      - name: sha256
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "Parent file."
+      - name: account_ref
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 2
+        description: "Last 4 digits of the account number."
+      - name: line_no
+        logicalType: integer
+        physicalType: integer
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 3
+        description: "Row order within the account's table."
+      - name: booking_date
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Booking date as printed (dd/mm/yyyy)."
+      - name: value_date
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Value date as printed."
+      - name: label
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Operation label (multi-line in the export, whitespace collapsed)."
+        classification: restricted
+      - name: debit
+        logicalType: string
+        physicalType: text
+        description: "Debit amount as printed, or empty."
+        classification: restricted
+      - name: credit
+        logicalType: string
+        physicalType: text
+        description: "Credit amount as printed, or empty."
+        classification: restricted
+      - name: _ingested_at
+        logicalType: timestamp
+        physicalType: timestamptz
+        required: true
+        description: "When the row landed in bronze (lineage column)."
+      - name: _run_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+        description: "Pipeline run that ingested the row (lineage column)."
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0

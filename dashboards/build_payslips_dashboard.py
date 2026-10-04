@@ -18,7 +18,7 @@ _id = [0]
 
 
 def name(measure: str, extra: str = "") -> str:
-    sel = f'__name__=~"finance_payslip_${{view}}{measure}_eur"'
+    sel = f'__name__=~"finance_payslip_${{view}}{measure}_eur", person=~"${{person}}"'
     return "{" + sel + (", " + extra if extra else "") + "}"
 
 
@@ -27,6 +27,7 @@ def held(measure: str, extra: str = "", window: str = HOLD) -> str:
 
 
 def tgt(expr, legend="", ref="A", instant=False):
+    legend = f"{legend} · {{{{person}}}}" if legend else "{{person}}"  # one series per person
     return {"datasource": DS, "editorMode": "code", "expr": expr, "legendFormat": legend, "refId": ref,
             "range": not instant, "instant": instant}
 
@@ -53,7 +54,7 @@ def stat(title, x, expr, unit, desc="Latest payslip in the selected time range, 
 
 
 def last_in_range(measure, extra=""):
-    return f"sum({held(measure, extra, '[$__range]')})"
+    return f"sum by (person) ({held(measure, extra, '[$__range]')})"
 
 
 BONUS = 'element=~"bonus|bonus_exempt"'
@@ -76,45 +77,45 @@ leg = {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mo
 tab = {"legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull"]}, "tooltip": {"mode": "multi"}}
 
 P.append(panel("timeseries", "Gross vs net (${view:text})", 0, 4, 12, 8, [
-    tgt(f'sum({held("gross")})', "Gross"),
-    tgt(f'sum({held("net_before_tax")})', "Net before tax", "B"),
-    tgt(f'sum({held("net_paid")})', "Net paid", "C")], "currencyEUR", ts, leg))
+    tgt(f'sum by (person) ({held("gross")})', "Gross"),
+    tgt(f'sum by (person) ({held("net_before_tax")})', "Net before tax", "B"),
+    tgt(f'sum by (person) ({held("net_paid")})', "Net paid", "C")], "currencyEUR", ts, leg))
 P.append(panel("timeseries", "What the gross is made of (${view:text})", 12, 4, 12, 8, [
-    tgt(f'sum by (element) ({held("pay_element")})', "{{element}}")], "currencyEUR", stack, tab,
+    tgt(f'sum by (person, element) ({held("pay_element")})', "{{element}}")], "currencyEUR", stack, tab,
     desc="base_salary, bonus, time_off (leave, RTT, absences, sick pay), back_pay, other_pay add up to the gross. "
          "bonus_exempt (value-sharing bonus) is printed outside the gross, so it sits on top."))
 P.append(panel("timeseries", "Bonuses (${view:text})", 0, 12, 12, 8, [
-    tgt(f'sum({held("pay_element", EL_BONUS)})', "Bonuses and commissions"),
-    tgt(f'sum({held("pay_element", EL_EXEMPT)})', "Value-sharing bonus", "B"),
-    tgt(f'sum({held("pay_element", BONUS)}) / sum({held("gross")})', "Share of gross", "C")], "currencyEUR",
+    tgt(f'sum by (person) ({held("pay_element", EL_BONUS)})', "Bonuses and commissions"),
+    tgt(f'sum by (person) ({held("pay_element", EL_EXEMPT)})', "Value-sharing bonus", "B"),
+    tgt(f'sum by (person) ({held("pay_element", BONUS)}) / sum by (person) ({held("gross")})', "Share of gross", "C")], "currencyEUR",
     {**ts, "fillOpacity": 25}, leg,
-    overrides=[{"matcher": {"id": "byName", "options": "Share of gross"}, "properties": [
+    overrides=[{"matcher": {"id": "byRegexp", "options": "Share of gross.*"}, "properties": [
         {"id": "unit", "value": "percentunit"}, {"id": "custom.axisPlacement", "value": "right"},
         {"id": "custom.fillOpacity", "value": 0}]}]))
 P.append(panel("timeseries", "Income tax withheld and effective rate (${view:text})", 12, 12, 12, 8, [
-    tgt(f'sum({held("tax_withheld")})', "Tax withheld"),
-    tgt(f'sum({held("tax_withheld")}) / sum({held("taxable_net")})', "Effective rate (tax / taxable net)", "B")],
+    tgt(f'sum by (person) ({held("tax_withheld")})', "Tax withheld"),
+    tgt(f'sum by (person) ({held("tax_withheld")}) / sum by (person) ({held("taxable_net")})', "Effective rate (tax / taxable net)", "B")],
     "currencyEUR", {**ts, "fillOpacity": 25}, leg,
     desc="Taxable net is missing for a few scanned 2020-21 months, so the rate has gaps there.",
-    overrides=[{"matcher": {"id": "byName", "options": "Effective rate (tax / taxable net)"}, "properties": [
+    overrides=[{"matcher": {"id": "byRegexp", "options": "Effective rate.*"}, "properties": [
         {"id": "unit", "value": "percentunit"}, {"id": "custom.axisPlacement", "value": "right"},
         {"id": "custom.fillOpacity", "value": 0}]}]))
 P.append(panel("timeseries", "Net-to-gross and contribution share (${view:text})", 0, 20, 12, 8, [
-    tgt(f'sum({held("net_paid")}) / sum({held("gross")})', "Net / gross"),
-    tgt(f'sum({held("employee_contributions")}) / sum({held("gross")})', "Employee contributions / gross", "B")],
+    tgt(f'sum by (person) ({held("net_paid")}) / sum by (person) ({held("gross")})', "Net / gross"),
+    tgt(f'sum by (person) ({held("employee_contributions")}) / sum by (person) ({held("gross")})', "Employee contributions / gross", "B")],
     "percentunit", ts, leg))
 P.append(panel("timeseries", "Employer cost (${view:text})", 12, 20, 12, 8, [
-    tgt(f'sum({held("employer_contributions")})', "Employer contributions"),
-    tgt(f'sum({held("employer_cost")})', "Total employer cost", "B")], "currencyEUR", ts, leg,
+    tgt(f'sum by (person) ({held("employer_contributions")})', "Employer contributions"),
+    tgt(f'sum by (person) ({held("employer_cost")})', "Total employer cost", "B")], "currencyEUR", ts, leg,
     desc="The total employer cost is not printed on payslips after 2025-10; its year-to-date and rolling views stay empty for the affected windows."))
 P.append(panel("timeseries", "Employee-side contributions by category (${view:text})", 0, 28, 12, 9, [
-    tgt(f'sum by (category) ({held("contribution", SIDE_EMPLOYEE)} > 0)', "{{category}}")],
+    tgt(f'sum by (person, category) ({held("contribution", SIDE_EMPLOYEE)} > 0)', "{{category}}")],
     "currencyEUR", stack, tab))
 P.append(panel("timeseries", "Employer-side contributions by category (${view:text})", 12, 28, 12, 9, [
-    tgt(f'sum by (category) ({held("contribution", SIDE_EMPLOYER)} > 0)', "{{category}}")],
+    tgt(f'sum by (person, category) ({held("contribution", SIDE_EMPLOYER)} > 0)', "{{category}}")],
     "currencyEUR", stack, tab))
 P.append(panel("timeseries", "Leave balances (days; not affected by the View)", 0, 37, 24, 7, [
-    tgt(f'sum by (kind) (last_over_time(finance_payslip_leave_days{HOLD}))', "{{kind}}")], "none", ts, leg))
+    tgt(f'sum by (person, kind) (last_over_time(finance_payslip_leave_days{{person=~"${{person}}"}}{HOLD}))', "{{kind}}")], "none", ts, leg))
 
 view = {
     "name": "view", "label": "View", "type": "custom", "query": "Monthly : (),Year to date : (ytd_),Rolling 12 months : (r12_)",
@@ -124,12 +125,19 @@ view = {
                 {"text": "Rolling 12 months", "value": "(r12_)", "selected": False}],
     "includeAll": False, "multi": False, "hide": 0,
 }
+person = {
+    "name": "person", "label": "Person", "type": "query", "datasource": DS,
+    "query": {"query": 'label_values({__name__=~"finance_payslip_gross_eur"}, person)', "refId": "person"},
+    "definition": 'label_values({__name__=~"finance_payslip_gross_eur"}, person)',
+    "includeAll": True, "allValue": ".+", "multi": True, "current": {"text": "All", "value": "$__all"},
+    "refresh": 2, "sort": 1, "hide": 0,
+}
 dash = {"uid": "finance-payslips", "title": "Finance - Payslips", "tags": ["finance", "payslips"], "timezone": "browser",
-        "schemaVersion": 39, "version": 2, "refresh": "", "time": {"from": "now-7y", "to": "now"},
+        "schemaVersion": 39, "version": 3, "refresh": "", "time": {"from": "now-7y", "to": "now"},
         "description": "Payslip figures published by finance-pipelines into the `finance` Mimir tenant. The View "
                        "switch picks the month, the calendar year to date, or the rolling 12 months for every flow. "
-                       "Each viewer only sees series whose owner label is their own login (scope shim); admins see all owners.",
-        "panels": P, "templating": {"list": [view]}, "annotations": {"list": []}}
+                       "Series carry `owner` (who may see them: scope shim) and `person` (whose figures: the Person filter; pick several or All).",
+        "panels": P, "templating": {"list": [view, person]}, "annotations": {"list": []}}
 
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "payslips.json"

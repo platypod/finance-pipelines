@@ -16,7 +16,7 @@ export FINANCE_PG_INGEST_PASSWORD ?= i
 export FINANCE_PG_TRANSFORM_USER ?= finance_transform
 export FINANCE_PG_TRANSFORM_PASSWORD ?= t
 
-.PHONY: help install generate check lint test test-integration pg-up pg-down image sync-payslips
+.PHONY: help install generate check lint test test-integration pg-up pg-down image sync-payslips sync-bank
 help:
 	@grep -E '^[a-z-]+:' Makefile | cut -d: -f1 | tr '\n' ' '; echo
 
@@ -62,3 +62,13 @@ sync-payslips:                 ## mirror new payslip PDFs to where the cluster r
 	find $(PAYSLIPS_DST) -name '._*' -delete   # AppleDouble files the macOS NFS client leaves behind
 	find $(PAYSLIPS_DST) -type d -exec chmod 755 {} +
 	find $(PAYSLIPS_DST) -type f -exec chmod 644 {} +
+
+# Same story for the bank statements and the private accounts.yaml / rules.yaml / overrides.csv.
+BANK_SRC ?= $(HOME)/nfs/homes/pittinic/bank-statements/
+BANK_DST ?= $(HOME)/nfs/kubernetes/apps/finance/bank-statements/
+sync-bank:                     ## mirror new statements + accounts.yaml/rules.yaml/overrides.csv where the cluster reads them
+	mkdir -p $(BANK_DST)
+	rsync -rt --exclude '._*' --exclude '@eaDir' --exclude '.DS_Store' --itemize-changes $(BANK_SRC) $(BANK_DST)
+	find $(BANK_DST) -name '._*' -delete
+	find $(BANK_DST) -type d -exec chmod 755 {} +
+	find $(BANK_DST) -type f -exec chmod 644 {} +

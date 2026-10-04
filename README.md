@@ -61,6 +61,33 @@ Parsing facts (79 files, 2020-02 → 2026-08, one employer):
   nullable). `Prime de partage de la valeur` / `Indemnités non soumises` stay in category
   `other`.
 
+## Bank statements
+
+`pp run bank` ingests Crédit Agricole CSV exports (several accounts per file; ISO-8859-1, `;`, decimal commas).
+Exports overlap (rolling ~13-month window): files are keyed by SHA-256, and operations are de-duplicated by
+(account, dates, label, amount) with an occurrence index, so two identical purchases on one day both count.
+Only the last four digits of an account number are stored; holder names are never read. The only balance in the
+file is one "Solde au" anchor per account: month-end balances are reconstructed backwards, and a contract rule fails
+the run if two exports disagree (a missing or duplicated row).
+
+Private inputs live next to the statements (`BANK_DIR`, never in this repo):
+
+| File | Purpose |
+|---|---|
+| `accounts.yaml` | one entry per account: `alias`, `bank: ca`, `last4`, `kind` (current/savings), `person` (a login, or `joint`), `visibility` (a login, or `group:<name>`) |
+| `rules.yaml` | optional private rules, evaluated before the generic `reference/default-rules.yaml` (priority = order); match on `label` (PostgreSQL ARE regex), `family`, `account`, `amount_min/max` |
+| `overrides.csv` | one-off fixes by `txn_id` or by date/amount/label: `category,subcategory,necessity` win over everything, incl. the transfer pairing |
+
+Classification order: override, paired own-account transfer (same amount, opposite sign, within 3 days) → first
+matching rule → defaults (unmatched transfers to/from other people are *excluded* from spend and income and listed for
+review; other credits are `income/other_income`; the rest is `uncategorized`). The vocabulary is `reference/taxonomy.yaml`
+(category/subcategory, necessity essential|comfort|luxury; copies in the contracts are checked by a test).
+
+Two labels decide who sees what: `owner` = who may read a series (a login, or `group:finance` = members of the LLDAP group
+`finance_user`, via the scope shim's `groupOwners`), `person` = whose figures they are (the dashboards' Person filter).
+Mimir only receives monthly aggregates; transaction labels stay in Postgres. `make sync-bank` mirrors the inputs to the
+apps share the cluster reads.
+
 ## Releasing
 
 CI (`.github/workflows`): `test.yml` on every push/PR (contracts valid, generated files in sync, unit + integration

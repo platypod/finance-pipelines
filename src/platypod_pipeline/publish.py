@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import time
 from decimal import Decimal
 
 import requests
@@ -82,11 +83,17 @@ class _Builder:
         self.scope.scope.name = "platypod.finance"
         self.metrics: dict[str, object] = {}
         self.points = 0
+        self.skipped_future = 0
 
     def add(self, name: str, unit: str, period: dt.date, value, *, owner: str, **attrs: str) -> None:
         if value is None:
             return
         _check_owner(owner)
+        if sample_time(period) > time.time_ns() - 3600 * 10**9:
+            # Mimir rejects a sample stamped in the future (err-mimir-too-far-in-future) and the gateway then drops the
+            # whole request: a month whose mid-month stamp has not come yet is simply not published yet.
+            self.skipped_future += 1
+            return
         metric = self.metrics.get(name)
         if metric is None:
             metric = self.scope.metrics.add()
@@ -130,10 +137,24 @@ def build_request(owner: str, income: list[dict], measures: list[dict]) -> tuple
     return b.request, b.points
 
 
-def build_bank_request(measures: list[dict]) -> tuple[ExportMetricsServiceRequest, int]:
-    """Bank. measures: gold.bank_measure rows. Each row carries its own owner (visibility) and person."""
+SETTLE_DAYS = 5  # a month is published once it has been over for this long: card operations still land after month end
+
+
+def settled(period: dt.date, today: dt.date | None = None) -> bool:
+    """Samples are immutable in Mimir (a later, different value for the same timestamp is rejected), so a month is only
+    published when it is complete and its late-booked operations have arrived."""
+    today = today or dt.datetime.now(dt.timezone.utc).date()
+    nxt = (period.replace(day=1) + dt.timedelta(days=32)).replace(day=1)
+    return today >= nxt + dt.timedelta(days=SETTLE_DAYS)
+
+
+def build_bank_request(measures: list[dict], today: dt.date | None = None) -> tuple[ExportMetricsServiceRequest, int]:
+    """Bank. measures: gold.bank_measure rows. Each row carries its own owner (visibility) and person.
+    Only settled months are published (see `settled`)."""
     b = _Builder()
     for row in measures:
+        if not settled(row["period"], today):
+            continue
         measure, who = row["measure"], {"owner": row["owner"], "person": row["person"]}
         if measure == "balance":
             b.add("finance.bank.balance_eur", "EUR", row["period"], row["value"], account=row["item1"], **who)

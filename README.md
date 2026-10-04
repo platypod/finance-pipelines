@@ -85,7 +85,9 @@ review; other credits are `income/other_income`; the rest is `uncategorized`). T
 
 Two labels decide who sees what: `owner` = who may read a series (a login, or `group:finance` = members of the LLDAP group
 `finance_user`, via the scope shim's `groupOwners`), `person` = whose figures they are (the dashboards' Person filter).
-Mimir only receives monthly aggregates; transaction labels stay in Postgres. `make sync-bank` mirrors the inputs to the
+Mimir only receives monthly aggregates; transaction labels stay in Postgres. Samples are immutable and Mimir rejects
+future-stamped ones, so a month is published only once it is over **plus 5 days** (late card operations); the running
+month appears in the dashboards in the first days of the next one. `make sync-bank` mirrors the inputs to the
 apps share the cluster reads.
 
 ## Releasing

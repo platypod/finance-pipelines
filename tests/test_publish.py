@@ -125,3 +125,23 @@ def test_no_label_or_merchant_can_reach_the_metrics():
 
     src = inspect.getsource(pub.build_bank_request)
     assert "label" not in src.replace("label_", "") and "merchant" not in src
+
+
+def test_a_month_is_published_only_once_it_has_settled():
+    d = dt.date
+    assert not pub.settled(d(2026, 9, 1), d(2026, 10, 5))   # over, but late card operations may still land
+    assert pub.settled(d(2026, 9, 1), d(2026, 10, 6))
+    assert not pub.settled(d(2026, 10, 1), d(2026, 10, 20))  # the running month never is
+    assert pub.settled(d(2025, 12, 1), d(2026, 1, 6))        # year boundary
+    rows = [bank_row(d(2026, 8, 1), "spend", "alice", "alice", "food", "groceries", Decimal("5")),
+            bank_row(d(2026, 9, 1), "spend", "alice", "alice", "food", "groceries", Decimal("7"))]
+    _, n_early = pub.build_bank_request(rows, today=d(2026, 10, 3))
+    _, n_late = pub.build_bank_request(rows, today=d(2026, 10, 9))
+    assert n_late == 2 * n_early  # August only, then August and September
+
+
+def test_a_future_stamped_sample_is_skipped_instead_of_getting_the_whole_batch_rejected():
+    b = pub._Builder()
+    b.add("finance.x", "EUR", dt.date(2999, 1, 1), 1, owner="alice")
+    b.add("finance.x", "EUR", dt.date(2026, 1, 1), 1, owner="alice")
+    assert (b.points, b.skipped_future) == (1, 1)

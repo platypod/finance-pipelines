@@ -36,6 +36,20 @@ LINE_COLS = ("section", "label", "base", "rate", "employee_gain", "employee_dedu
              "employer_base", "employer_rate", "employer_amount")
 
 
+class NeedsAttention(RuntimeError):
+    """Some payslip has no successfully parsed file. Raised AFTER everything good has been loaded and
+    published, so the run is marked failed (Job, ops.pipeline_run, OpenLineage FAIL) without losing data."""
+
+
+UNRESOLVED_SQL = """
+    select to_char(f.period, 'YYYY-MM'), f.status, coalesce(f.warnings ->> 0, '')
+    from bronze.payslip_file f
+    where f.status <> 'parsed'
+      and not exists (select 1 from bronze.payslip_file g where g.period = f.period and g.status = 'parsed')
+    order by f.period
+"""
+
+
 def discover(root: Path) -> list[tuple[Path, str]]:
     """(path, 'YYYY-MM') for every payslip PDF; skips macOS `._*` and Synology `@eaDir` debris."""
     found = []
@@ -128,3 +142,12 @@ def run(settings: Settings | None = None) -> None:
                 publish(settings)
         else:
             log.info("FINANCE_OWNER / OTEL_EXPORTER_OTLP_ENDPOINT not set: skipping the Mimir publish step")
+        # A `review` file at the END of the series is not a gap, so the contract's no-missing-month rule stays
+        # silent about it: fail the run explicitly (a period is resolved once ANY file of it parsed).
+        with db.connect(settings, "ingest") as conn:
+            unresolved = conn.execute(UNRESOLVED_SQL).fetchall()
+        if unresolved:
+            raise NeedsAttention(
+                f"{len(unresolved)} payslip(s) could not be parsed and are NOT in the dashboards: "
+                + "; ".join(f"{p} ({st}): {w[:120]}" for p, st, w in unresolved)
+            )

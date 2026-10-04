@@ -46,8 +46,9 @@ Parsing facts (79 files, 2020-02 → 2026-08, one employer):
   checks pass (one needed it). Without the binaries such a file is `needs_ocr`.
 - **Self-checking**: every file must satisfy period == file name, contribution lines sum
   to the printed totals, and `net paid = net before tax - PAS`. A failing file is stored
-  as `status='review'` and kept out of silver; the silver "no missing month" rule then
-  fails the run, so a gap can never go unnoticed. Year-to-date gross printed on the
+  as `status='review'` and kept out of silver. A review file in the middle of the series trips the silver "no
+  missing month" rule; one at the END is not a gap, so the run explicitly fails (`NeedsAttention`) after loading
+  and publishing everything else, until a parsed file exists for that period. Year-to-date gross printed on the
   payslips matches the figure recomputed from the months for all 74 payslips that print it.
 - **Privacy**: parsers read only finance fields. NIR, IBAN and address are never extracted
   (they are present in the PDFs). Tests use invented numbers; the real archive is only

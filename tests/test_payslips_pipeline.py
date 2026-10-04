@@ -162,3 +162,30 @@ def test_publish_step_sends_owner_stamped_historical_points_after_the_gate(setti
     assert {a.value.string_value for m in finance for dp in m.gauge.data_points for a in dp.attributes if a.key == "owner"} == {"alice"}
     names = {m.name for m in finance}
     assert {"finance.payslip.ytd_pay_element_eur", "finance.payslip.pay_element_eur", "finance.payslip.ytd_contribution_eur"} <= names
+
+
+def test_a_review_file_at_the_end_of_the_series_fails_the_run_after_loading_the_rest(settings, corpus, monkeypatch):
+    """No gap, so the contract rule is silent: the run must still fail (this once ended as 'success')."""
+    from platypod_pipeline.pipelines.payslips import NeedsAttention
+
+    (corpus / "2099" / "209905.pdf").write_bytes(b"trailing payslip 2099-05")
+    (corpus / "2099" / "209903.pdf").write_bytes(b"corrected payslip 2099-03")
+
+    def parse(path, period):
+        parsed, src = fake_parse(path, period)
+        if period in ("2099-03",):  # a parsed file exists for 2099-03 (corrected) -> resolved
+            parsed.summary["net_paid"] = "2 662.68"
+            parsed.warnings.clear()
+            check(parsed, period)
+        if period == "2099-05":
+            parsed.summary["net_paid"] = "1.00"
+            check(parsed, period)
+        return parsed, src
+
+    monkeypatch.setattr(payslips, "parse_pdf", parse)
+    with pytest.raises(NeedsAttention) as exc:
+        payslips.run(settings)
+    assert "2099-05" in str(exc.value) and "2099-03" not in str(exc.value)
+    assert q(settings, "select count(*) from silver.payslip where period >= '2099-01-01'")[0][0] == 4  # the rest was loaded
+    (status,) = q(settings, "select status from ops.pipeline_run where job=%s order by started_at desc limit 1", payslips.JOB)[0]
+    assert status == "failed"

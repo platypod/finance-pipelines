@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 
-from .model import Parsed, RawLine
+from .model import MONTHS, Parsed, RawLine
 from .words import Page, Row, Token, fold, nearest, rows_of
 
 ANCHORS = {"base": 298, "rate": 352, "emp": 404, "employer": 478}
@@ -22,11 +22,20 @@ TABLE_X_MAX = 490
 PANEL_SPLIT = 370   # left panel numbers end at x~363, right panel labels start at x~375
 MARGIN_X = 31       # rotated section names ("Brut", "Santé", ...) live left of the labels
 FOOTNOTE_SIZE = 6.3  # body text is ~6.7pt, footnote markers ~6.0pt
+GLYPH_SIZE = 5.8     # rotated section names ("Brut", "Santé", ...) are drawn glyph by glyph at 1.5-5.3pt
+# words that only occur in the employee/employer header block (repeated on every page of the 2026-09+ template)
+HEADER_WORDS = ("siret", "n° ape", "convention collective", "classification", "emploi :", "categorie", "anciennete",
+                "salaire contractuel", "syntec", "minimum coefficient", "remuneration du mois", "duree mensuelle",
+                "taux horaire", "debut de contrat", "detail du salarie")
 DEDUCTION_WORDS = ("retenue", "titres-restaurant", "titre restaurant", "acompte", "saisie", "mutuelle")
 
 
 def _strip_footnotes(row: Row) -> Row:
-    row.tokens = [t for t in row.tokens if not (t.text.isdigit() and 0 < t.size < FOOTNOTE_SIZE and len(t.text) <= 2)]
+    row.tokens = [
+        t for t in row.tokens
+        if not (t.text.isdigit() and 0 < t.size < FOOTNOTE_SIZE and len(t.text) <= 2)  # footnote markers
+        and not (0 < t.size < GLYPH_SIZE and len(t.text) <= 3)                        # rotated margin glyphs
+    ]
     return row
 
 
@@ -50,23 +59,29 @@ def parse(pages: list[Page]) -> Parsed:
     full = fold(" ".join(r.text() for r in rows))
     if m := re.search(r"debut de periode\s*:?\s*(\d{2})/(\d{2})/(\d{4})", full):
         s["period"] = f"{m.group(3)}-{m.group(2)}"
+    elif m := re.search(r"\bdu (\d{2})/(\d{2})/(\d{4}) au \d{2}/\d{2}/\d{4}", full):  # 2026-09+: "Du 01/09/2026 au 25/09/2026"
+        s["period"] = f"{m.group(3)}-{m.group(2)}"
+    elif m := re.search(r"bulletin de paie de ([a-z]+) (\d{4})", full):  # page 1: "Voici votre bulletin de paie de septembre 2026"
+        if month := MONTHS.get(m.group(1)):
+            s["period"] = f"{m.group(2)}-{month:02d}"
     if m := re.search(r"n.?siret\s*:?\s*(\d{14})", full):
         s["employer_siret"] = m.group(1)
     if m := re.search(r"date de paiement\s*(\d{2}/\d{2}/\d{4})", full):
         s["payment_date"] = m.group(1)
 
-    started = False
     bottom = False
     leave_cols: list[str] = []
     section = "brut"
     n = 0
-    for row in rows:
+    skip_until: dict[int, int] = {}  # page -> index of the last header-block row
+    for idx, row in enumerate(rows):
         if row.page == 0:
             continue
-        text = fold(row.text())
-        if not started:
-            started = "designation" in text and "base" in text
+        if row.page not in skip_until:
+            skip_until[row.page] = _header_end(rows, row.page)
+        if idx <= skip_until[row.page]:
             continue
+        text = fold(row.text())
         if "soldes de conges" in text and "impot sur le revenu" in text:
             bottom = True
         if bottom:
@@ -108,6 +123,27 @@ def parse(pages: list[Page]) -> Parsed:
                 employer_amount=cols.get("employer"),
             ))
     return res
+
+
+def _header_end(rows: list[Row], page: int) -> int:
+    """Index (in `rows`) of the last row of the header block of `page`, so the table starts after it.
+
+    Pages that carry the table header use it ("DÉSIGNATION  BASE"). Continuation pages repeat the
+    employee/employer block but not that header, so the block ends at its last header-ish row in
+    the upper part of the page. Without either, nothing is skipped.
+    """
+    page_rows = [(i, r) for i, r in enumerate(rows) if r.page == page]
+    for i, r in page_rows:
+        t = fold(r.text())
+        if "designation" in t and "base" in t:
+            return i
+    last = -1
+    for i, r in page_rows:
+        if r.top > 400:  # header blocks live in the upper half of an A4 page
+            break
+        if any(w in fold(r.text()) for w in HEADER_WORDS):
+            last = i
+    return last
 
 
 def _leave_header(right: Row) -> list[str] | None:

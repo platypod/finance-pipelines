@@ -103,3 +103,53 @@ def modern_pages() -> list[Page]:
     t += 10
     words += label("Temps travaillé ce mois", t, 22) + [w("154.35", 357, t)]
     return [p1, Page(596, 842, words)]
+
+
+def modern_pages_2026_09() -> list[Page]:
+    """The 2026-09+ template: period as `Du dd/mm/yyyy au dd/mm/yyyy`, labels at x0=45 with the rotated
+    section letters drawn at x0=36 (tiny), and the employee header block repeated on page 3."""
+    def header_block(top0):
+        words, t = [], top0
+        def row(text, x0=31, **kw):
+            nonlocal t
+            t += 10
+            words.extend(label(text, t, x0, **kw))
+        words += label("Bulletin de paie", top0 - 20, 40)
+        words += label("Du 01/09/2099 au 25/09/2099", top0 - 10, 463)
+        row("N° SIRET : 12345678901234 Minimum coefficient")
+        row("N° APE : 6202A Début de contrat : 10/02/2020")
+        row("TECHNIQUES, CABINETS Catégorie : Ingénieurs et Cadres", 116)
+        # "- 100 - 1.2": the value that used to be read as a table number (x1=373, minus detached)
+        words += [left("-", 360.0, t), w("1.2", 373, t)]
+        row("(SYNTEC) - 1486", 141)
+        return words, t
+
+    p1 = Page(596, 842, [*label("Voici votre bulletin de paie de septembre 2099", 20)])
+    words, t = header_block(40)
+    t += 10
+    words += label("DÉSIGNATION BASE", t, 150)
+    def row(lbl, glyph=None, **cols):
+        nonlocal t
+        t += 10
+        anchors = dict(base=298, rate=352, emp=404, employer=478)
+        if glyph:
+            words.append(Word(glyph, 36.2, 36.2 + 1.5, t, 3.3))  # rotated margin letter, tiny
+        words.extend(label(lbl, t, 45))
+        for c, v in cols.items():
+            words.append(w(v, anchors[c], t))
+    row("Salaire de base", base="151,67", rate="26,0000", emp="4 000,00")
+    row("Indemnité compensatrice de Congés Payés", glyph="u", emp="6 000,00")
+    row("Prime de commission", emp="1 000,00")
+    row("Rémunération brute", emp="11 000,00")
+    row("Base", glyph="e", base="11 000,00", employer="400,00")
+    row("TOTAL COTISATIONS & CONTRIBUTIONS SALARIALES", emp="100,00")
+    row("TOTAL COTISATIONS & CONTRIBUTIONS PATRONALES", employer="400,00")
+    row("Net à payer avant impôt sur le revenu", employer="10 900,00")
+    row("Net payé en euros ( Virement )", employer="9 900,00")
+    p2 = Page(596, 842, words)
+    words3, t3 = header_block(40)
+    t3 += 10
+    words3 += label("Impôt sur le revenu", t3, 31) + label("Soldes de congés", t3, 375)
+    t3 += 10
+    words3 += label("Impôt sur le revenu prélevé à la source", t3, 33) + [w("10 900,00", 224, t3), w("10,00", 287, t3), w("1 000,00", 363, t3)]
+    return [p1, p2, Page(596, 842, words3)]

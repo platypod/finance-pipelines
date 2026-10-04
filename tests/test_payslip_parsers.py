@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from payslip_fixtures import modern_pages, silae_page
+from payslip_fixtures import modern_pages, modern_pages_2026_09, silae_page
 
 from platypod_pipeline.payslips import modern, silae
 from platypod_pipeline.payslips.parse import check, detect, num
@@ -102,3 +102,22 @@ def test_modern_checks_consistent_data():
     # the synthetic employee/employer line sums are deliberately partial: only totals and identities are asserted
     check(p, "2099-01")
     assert not any("net paid" in m or "period" in m for m in p.warnings)
+
+
+def test_modern_2026_09_template_period_header_block_and_margin_glyphs():
+    """Regression: the first payslip of the new template was stored as `review` and never reached Grafana."""
+    p = modern.parse(modern_pages_2026_09())
+    assert p.summary["period"] == "2099-09"  # from "Du 01/09/2099 au 25/09/2099"
+    # the employee header block repeated on page 3 (with a `- 100 - 1.2` value in the table's x range) is not table
+    assert not any("unassigned number" in m for m in p.warnings)
+    labels = [l.label for l in p.lines]
+    assert labels == ["Salaire de base", "Indemnité compensatrice de Congés Payés", "Prime de commission", "Base"]  # no stray glyph prefixes
+    check(p, "2099-09")
+    assert not any("gross pay elements" in m or "period" in m for m in p.warnings)
+
+
+def test_period_falls_back_to_the_page_one_sentence():
+    pages = modern_pages_2026_09()
+    for pg in pages[1:]:  # no "Du ... au ..." row at all
+        pg.words = [w for w in pg.words if abs(w.x0 - 463) > 1]
+    assert modern.parse(pages).summary["period"] == "2099-09"

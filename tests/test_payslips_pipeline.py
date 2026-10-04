@@ -127,6 +127,10 @@ class _Capture(BaseHTTPRequestHandler):
 def test_publish_step_sends_owner_stamped_historical_points_after_the_gate(settings, corpus, monkeypatch):
     from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import ExportMetricsServiceRequest
 
+    from platypod_pipeline import publish
+
+    # the synthetic payslips are dated 2099: pretend it is 2100 so the "no future-stamped sample" guard lets them through
+    monkeypatch.setattr(publish.time, "time_ns", lambda: 4_102_444_800 * 10**9)
     # reuse the "fixed" corpus of the previous test: every month present, so the gate passes
     def good(path, period):
         parsed, src = fake_parse(path, period)

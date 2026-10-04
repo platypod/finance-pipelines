@@ -31,8 +31,9 @@ log = logging.getLogger(__name__)
 JOB = "finance.bank"
 NOT_STATEMENTS = {"overrides.csv"}
 OUTPUTS = ["bronze.bank_file", "bronze.bank_transaction_raw", "silver.bank_account", "silver.bank_rule", "silver.bank_override",
-           "silver.bank_balance", "silver.bank_transaction", "silver.bank_transaction_category", "gold.bank_measure"]
-MODELS = "bank_balance bank_transaction bank_transaction_category bank_measure"
+           "silver.bank_balance", "silver.bank_transaction", "silver.bank_transaction_category", "gold.bank_measure",
+           "gold.bank_transaction_detail"]
+MODELS = "bank_balance bank_transaction bank_transaction_category bank_measure bank_transaction_detail"
 
 UNRESOLVED_SQL = """
     select f.source_path, f.status, coalesce(f.warnings ->> 0, '')

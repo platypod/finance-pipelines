@@ -1,0 +1,111 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: urn:platypod:finance:gold:bank_transaction_detail
+name: bank_transaction_detail
+version: 1.0.0
+status: active
+domain: finance
+dataProduct: bank
+description:
+  purpose: "One row per bank operation with its classification and a review flag: the detail view (transactions table, review queue) of the dedicated finance Grafana. Postgres only: never published to Mimir."
+servers:
+  - server: finance-pg
+    type: postgres
+    host: placeholder   # patched at runtime from FINANCE_PG_HOST/PORT/DATABASE
+    port: 5432
+    database: finance
+    schema: gold
+schema:
+  - name: bank_transaction_detail
+    physicalType: table
+    description: "One row per de-duplicated operation (same key as silver.bank_transaction)."
+    properties:
+      - name: txn_id
+        logicalType: string
+        physicalType: text
+        required: true
+        primaryKey: true
+        primaryKeyPosition: 1
+        description: "Transaction (primary key)."
+      - name: account
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Account alias."
+      - name: person
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Whose account (login or joint)."
+      - name: owner
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Who may see it (login or group:<name>)."
+      - name: booking_date
+        logicalType: date
+        physicalType: date
+        required: true
+        description: "Booking date."
+      - name: spend_date
+        logicalType: date
+        physicalType: date
+        required: true
+        description: "Reporting date: the purchase date on card payments, else the booking date."
+      - name: amount
+        logicalType: number
+        physicalType: numeric(12,2)
+        required: true
+        description: "Signed amount: negative = money out."
+        classification: restricted
+      - name: label
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Cleaned operation label."
+        classification: restricted
+      - name: family
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "card | direct_debit | transfer_in | transfer_out | cash | refund | interest | fees | payment | other."
+      - name: category
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Category (taxonomy)."
+      - name: subcategory
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "Subcategory (taxonomy)."
+      - name: necessity
+        logicalType: string
+        physicalType: text
+        description: "essential | comfort | luxury."
+      - name: source
+        logicalType: string
+        physicalType: text
+        required: true
+        description: "override | transfer_pair | rule | default."
+      - name: rule_id
+        logicalType: string
+        physicalType: text
+        description: "Rule that matched."
+      - name: needs_review
+        logicalType: boolean
+        physicalType: boolean
+        required: true
+        description: "True when no rule or override decided it: uncategorized, or a default transfer to/from another person."
+    quality:
+      - type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+      - type: sql
+        description: exactly the operations of silver.bank_transaction, no more, no fewer
+        query: SELECT abs((SELECT count(*) FROM gold.bank_transaction_detail) - (SELECT count(*) FROM silver.bank_transaction))
+        mustBe: 0
+      - type: sql
+        description: an operation needs review exactly when nothing decided it (no rule or override) and it is not a paired internal transfer
+        query: SELECT count(*) FROM gold.bank_transaction_detail WHERE needs_review <> (source = 'default' AND NOT (category = 'income' AND subcategory = 'other_income'))
+        mustBe: 0

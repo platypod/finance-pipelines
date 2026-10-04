@@ -11,7 +11,7 @@ from platypod_pipeline.pipelines.payslips import NeedsAttention
 from platypod_pipeline.runner import ContractViolation
 
 pytestmark = pytest.mark.integration
-TABLES = ["gold.bank_measure", "silver.bank_transaction_category", "silver.bank_transaction", "silver.bank_balance",
+TABLES = ["gold.bank_transaction_detail", "gold.bank_measure", "silver.bank_transaction_category", "silver.bank_transaction", "silver.bank_balance",
           "silver.bank_override", "silver.bank_rule", "silver.bank_account", "bronze.bank_transaction_raw", "bronze.bank_file"]
 
 ACCOUNTS = """accounts:
@@ -109,6 +109,9 @@ def test_overlapping_exports_dedupe_pair_classify_and_reconcile(settings, statem
     # the month-end balance of the last (partial) month is the bank's own figure
     (bal,) = q(settings, "select value from gold.bank_measure where measure='balance' and item1='alice-current' and period='2026-02-01'")[0]
     assert float(bal) == 2391.0
+    # the detail view flags what nothing decided (ZORBA), not what a rule or a pair decided
+    review = q(settings, "select label, amount from gold.bank_transaction_detail where needs_review")
+    assert [(l.split()[0], float(a)) for l, a in review] == [("Prélèvement", -20.0)] and "ZORBA" in review[0][0]
     (run_status,) = q(settings, "select status from ops.pipeline_run where job=%s order by started_at desc limit 1", bank.JOB)[0]
     assert run_status == "success"
 

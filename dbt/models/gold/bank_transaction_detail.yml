@@ -1,0 +1,91 @@
+# GENERATED from contracts/gold.bank_transaction_detail.odcs.yaml by `pp generate`. Do not edit.
+version: 2
+models:
+- name: bank_transaction_detail
+  config:
+    meta:
+      data_contract: urn:platypod:finance:gold:bank_transaction_detail
+    materialized: table
+    contract:
+      enforced: true
+  description: One row per de-duplicated operation (same key as silver.bank_transaction).
+  columns:
+  - name: txn_id
+    data_type: text
+    description: Transaction (primary key).
+    constraints:
+    - type: not_null
+    - type: unique
+  - name: account
+    data_type: text
+    description: Account alias.
+    constraints:
+    - type: not_null
+  - name: person
+    data_type: text
+    description: Whose account (login or joint).
+    constraints:
+    - type: not_null
+  - name: owner
+    data_type: text
+    description: Who may see it (login or group:<name>).
+    constraints:
+    - type: not_null
+  - name: booking_date
+    data_type: date
+    description: Booking date.
+    constraints:
+    - type: not_null
+  - name: spend_date
+    data_type: date
+    description: 'Reporting date: the purchase date on card payments, else the booking
+      date.'
+    constraints:
+    - type: not_null
+  - name: amount
+    data_type: numeric(12,2)
+    description: 'Signed amount: negative = money out.'
+    constraints:
+    - type: not_null
+    meta:
+      classification: restricted
+  - name: label
+    data_type: text
+    description: Cleaned operation label.
+    constraints:
+    - type: not_null
+    meta:
+      classification: restricted
+  - name: family
+    data_type: text
+    description: card | direct_debit | transfer_in | transfer_out | cash | refund
+      | interest | fees | payment | other.
+    constraints:
+    - type: not_null
+  - name: category
+    data_type: text
+    description: Category (taxonomy).
+    constraints:
+    - type: not_null
+  - name: subcategory
+    data_type: text
+    description: Subcategory (taxonomy).
+    constraints:
+    - type: not_null
+  - name: necessity
+    data_type: text
+    description: essential | comfort | luxury.
+  - name: source
+    data_type: text
+    description: override | transfer_pair | rule | default.
+    constraints:
+    - type: not_null
+  - name: rule_id
+    data_type: text
+    description: Rule that matched.
+  - name: needs_review
+    data_type: boolean
+    description: 'True when no rule or override decided it: uncategorized, or a default
+      transfer to/from another person.'
+    constraints:
+    - type: not_null

@@ -1,15 +1,15 @@
-"""Generates the "Finance - Bank detail" dashboard for the DEDICATED finance Grafana (Postgres datasource uid `finance`).
+"""Generates the "Finance - Bank detail" dashboard for the SHARED Grafana (Postgres datasource uid `finance-pg`).
 
-    python dashboards/build_bank_detail_dashboard.py ../stack/src/finance/files/dashboards/bank-detail.json
+    python dashboards/build_bank_detail_dashboard.py ../stack/src/observability/files/dashboards/finance/bank-detail.json
 
-Reads gold.bank_transaction_detail only (the finance_grafana role sees gold only). Transaction labels live here and
-nowhere else: the shared Grafana / Mimir only ever get monthly aggregates.
+Reads gold.bank_transaction_detail (the finance_grafana role sees gold only). Transaction labels live in Postgres only:
+Mimir only ever gets monthly aggregates. The datasource is not scoped per user, see the stack's grafana config-map.
 """
 
 import json
 import sys
 
-DS = {"type": "grafana-postgresql-datasource", "uid": "finance"}
+DS = {"type": "grafana-postgresql-datasource", "uid": "finance-pg"}
 T = "gold.bank_transaction_detail"
 _id = [0]
 FILTER = ("person IN ($person) AND account IN ($account) AND category IN ($category) AND subcategory IN ($subcategory) "

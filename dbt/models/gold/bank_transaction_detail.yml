@@ -47,15 +47,17 @@ models:
     description: 'Signed amount: negative = money out.'
     constraints:
     - type: not_null
-    meta:
-      classification: restricted
+    config:
+      meta:
+        classification: restricted
   - name: label
     data_type: text
     description: Cleaned operation label.
     constraints:
     - type: not_null
-    meta:
-      classification: restricted
+    config:
+      meta:
+        classification: restricted
   - name: family
     data_type: text
     description: card | direct_debit | transfer_in | transfer_out | cash | refund

@@ -41,34 +41,39 @@ models:
   - name: base
     data_type: numeric(12,2)
     description: Base amount.
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: rate
     data_type: numeric(10,4)
     description: Rate, percent.
   - name: employee_gain
     data_type: numeric(12,2)
     description: Employee-side gain (pay element).
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: employee_deduction
     data_type: numeric(12,2)
     description: Employee-side deduction.
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: employer_base
     data_type: numeric(12,2)
     description: Employer base.
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: employer_rate
     data_type: numeric(10,4)
     description: Employer rate, percent.
   - name: employer_amount
     data_type: numeric(12,2)
     description: Employer-side amount.
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: source_sha256
     data_type: text
     description: File this row was derived from.

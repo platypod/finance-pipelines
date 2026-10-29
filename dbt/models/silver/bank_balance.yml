@@ -25,8 +25,9 @@ models:
     description: Balance on that date.
     constraints:
     - type: not_null
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: source_sha256
     data_type: text
     description: Export it came from.

@@ -46,15 +46,18 @@ models:
     data_type: numeric(14,2)
     description: 'Amount for the month (spend: money out net of refunds, positive;
       balance: month-end).'
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: ytd_value
     data_type: numeric(14,2)
     description: Calendar year to date. NULL for balances.
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: r12_value
     data_type: numeric(14,2)
     description: Rolling 12 months. NULL until 12 months exist, and for balances.
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential

@@ -37,17 +37,20 @@ models:
   - name: value
     data_type: numeric(12,2)
     description: The amount for the month. NULL when the payslip does not print it.
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: ytd_value
     data_type: numeric(12,2)
     description: Calendar year to date including this month. NULL if any month so
       far has no figure.
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: r12_value
     data_type: numeric(12,2)
     description: Rolling 12 months ending this month. NULL until 12 months exist or
       if any has no figure.
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential

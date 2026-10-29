@@ -25,12 +25,14 @@ models:
     description: Employee-side deductions in the category.
     constraints:
     - type: not_null
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential
   - name: employer_amount
     data_type: numeric(12,2)
     description: Employer-side amounts in the category.
     constraints:
     - type: not_null
-    meta:
-      classification: confidential
+    config:
+      meta:
+        classification: confidential

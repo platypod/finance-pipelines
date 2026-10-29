@@ -14,7 +14,7 @@
     when {{ section }} = 'brut' and {{ label }} ~* '^salaire de base' then 'base_salary'
     when {{ section }} = 'brut' and {{ label }} ~* '^(prime|commission)' then 'bonus'
     when {{ section }} = 'brut' and {{ label }} ~* '^rappel' then 'back_pay'
-    when {{ section }} = 'brut' and {{ label }} ~* 'cong[eé]s|rtt|absence|maladie|ijss|ajustement du net' then 'time_off'
+    when {{ section }} = 'brut' and {{ label }} ~* 'cong[eé]s?|rtt|absence|^abs\.|maladie|ijss|ajustement du net' then 'time_off'
     when {{ section }} = 'brut' then 'other_pay'
     {# printed outside the gross (net side), but still a bonus; tracked apart so gross reconciles #}
     when {{ label }} ~* '^prime de partage' then 'bonus_exempt'

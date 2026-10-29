@@ -24,7 +24,7 @@ COMMENT ON COLUMN bronze.payslip_file.source_path IS 'Path relative to the paysl
 COMMENT ON COLUMN bronze.payslip_file.size_bytes IS 'File size.';
 COMMENT ON COLUMN bronze.payslip_file.file_mtime IS 'File modification time.';
 COMMENT ON COLUMN bronze.payslip_file.period IS 'Pay month (first day), from the file name.';
-COMMENT ON COLUMN bronze.payslip_file.layout IS 'Detected layout: silae | modern | unknown.';
+COMMENT ON COLUMN bronze.payslip_file.layout IS 'Detected layout: silae | modern | matmut | unknown.';
 COMMENT ON COLUMN bronze.payslip_file.source IS 'How the text was obtained: text | ocr.';
 COMMENT ON COLUMN bronze.payslip_file.parser_version IS 'Version of the parser that produced `summary`.';
 COMMENT ON COLUMN bronze.payslip_file.status IS 'parsed (all arithmetic checks pass) | review (checks failed) | unsupported (no known layout).';

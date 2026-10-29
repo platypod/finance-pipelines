@@ -153,3 +153,51 @@ def modern_pages_2026_09() -> list[Page]:
     t3 += 10
     words3 += label("Impôt sur le revenu prélevé à la source", t3, 33) + [w("10 900,00", 224, t3), w("10,00", 287, t3), w("1 000,00", 363, t3)]
     return [p1, p2, Page(596, 842, words3)]
+
+
+def matmut_page() -> Page:
+    """2026-10+ layout. Right edges: base 315, rate 366, salary amount 441, employer rate 496, employer amount 573.
+    Invented figures that satisfy every cross-check: gross 2600.00 = 3000 + 100 - 500; employee 358.80; employer 643.90."""
+    words = [*label("BULLETIN DE SALAIRE OCTOBRE 2099", 20, 200), *label("Date début paie : 01/10/2099 Date fin paie : 31/10/2099", 40, 30),
+             *label("SIRET : 12345678901234", 60, 30),
+             *label("BASE OU PART SALARIALE PART PATRONALE", 251, 280), *label("LIBELLE", 263, 40),
+             *label("NOMBRE Taux Montant Taux Montant", 263, 300)]
+    t = 270
+    cols = dict(base=315, rate=366, emp=441, e_rate=496, employer=573)
+
+    def row(lbl, dup=False, **vals):
+        nonlocal t
+        t += 9
+        words.extend(label(lbl, t))
+        for c, v in vals.items():
+            words.append(w(v, cols[c], t))
+            if dup and c == "emp":  # the PDF prints some rows twice on top of each other
+                words.append(w(v, cols[c], t))
+
+    row("Salaire de base forf. 213 jours", emp="3000.00")
+    row("Prime exceptionnelle", emp="100.00")
+    row("Abs. Congé sans solde du 05-10-99 au 09-10-99", base="5.00", rate="100.000", emp="-500.00")
+    row("Salaire brut", emp="2600.00")
+    row("COTISATIONS ET CONTRIBUTIONS")
+    row("SANTE")
+    row("Sécurité Sociale-Maladie Maternité Invalidité")
+    row("Décès", base="2600.00", e_rate="13.000", employer="338.00")  # the label wraps: the numbers sit on the 2nd row
+    row("Complémentaire garanties frais de santé", emp="4.40", employer="83.60")
+    row("RETRAITE")
+    row("Sécurité Sociale plafonnée", base="2600.00", rate="6.900", emp="179.40", e_rate="8.550", employer="222.30")
+    row("CSG déductible de l'impôt sur le revenu", dup=True, base="2554.00", rate="6.800", emp="175.00")
+    row("TOTAL DES COTISATIONS ET", dup=True, emp="358.80", employer="643.90")
+    row("CONTRIBUTIONS OBLIGATOIRES")
+    row("MONTANT NET SOCIAL", emp="2241.20")
+    row("REMBOURSEMENTS ET DÉDUCTIONS DIVERSES")
+    row("Restaurant Exemple mois précédent", emp="-5.00")
+    row("Montant net à payer avant impôt sur le revenu", emp="2236.20")
+    row("IR PRÉLEVÉ À LA SOURCE (taux non perso)", base="2300.00", rate="5.000", emp="-115.00")
+    words += label("Date de paiement : 28/10/2099", 650, 30)
+    words += label("NET À PAYER :", 680, 30) + label("Réglé par", 691, 30) + [w("2121.20", 559, 691)]
+    words += label("Total versé par Allègement de", 712, 30) + [w("4 000.00", 491, 729), w("0.00", 553, 729)]
+    words += label("Brut mensuel Net fiscal mensuel Plafond mensuel PAS annuel", 745, 30)
+    words += [w("2600.00", 77, 758), w("2300.00", 156, 758), w("1550.00", 235, 758), w("115.00", 308, 758)]
+    words += label("Brut cumulé Net fiscal cumulé Plafond cumulé HC/HS exo. mensuel net HC/HS exo.annuel net", 772, 30)
+    words += [w("2600.00", 77, 783), w("2300.00", 156, 783), w("1950.00", 235, 783), w("0.00", 306, 783), w("0.00", 386, 783)]
+    return Page(595.0, 842.0, words)

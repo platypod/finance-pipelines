@@ -116,7 +116,7 @@ models:
     description: Payment date.
   - name: layout
     data_type: text
-    description: Source layout.
+    description: 'Source layout: silae | modern | matmut.'
     constraints:
     - type: not_null
   - name: source

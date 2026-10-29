@@ -121,3 +121,49 @@ def test_period_falls_back_to_the_page_one_sentence():
     for pg in pages[1:]:  # no "Du ... au ..." row at all
         pg.words = [w for w in pg.words if abs(w.x0 - 463) > 1]
     assert modern.parse(pages).summary["period"] == "2099-09"
+
+
+def test_matmut_layout_is_detected_and_parsed():
+    from payslip_fixtures import matmut_page
+    from platypod_pipeline.payslips import matmut
+
+    pages = [matmut_page()]
+    assert detect(pages) == "matmut"
+    p = matmut.parse(pages)
+    assert p.layout == "matmut" and p.warnings == []
+    s = p.summary
+    assert (s["period"], s["employer_siret"], s["payment_date"]) == ("2099-10", "12345678901234", "28/10/2099")
+    assert (s["gross"], s["employee_contributions"], s["employer_contributions"]) == ("2600.00", "358.80", "643.90")
+    assert (s["net_social"], s["net_before_tax"], s["net_paid"]) == ("2241.20", "2236.20", "2121.20")
+    assert (s["pas_base"], s["pas_rate"], s["pas_amount"]) == ("2300.00", "5.000", "115.00")  # amount stored unsigned
+    assert (s["total_paid"], s["allowances"], s["taxable_net"], s["ytd_gross"], s["ytd_taxable_net"]) == ("4 000.00", "0.00", "2300.00", "2600.00", "2300.00")
+
+
+def test_matmut_lines_signed_wrapped_labels_and_duplicates():
+    from payslip_fixtures import matmut_page
+    from platypod_pipeline.payslips import matmut
+
+    p = matmut.parse([matmut_page()])
+    by = {l.label: l for l in p.lines}
+    absence = by["Abs. Congé sans solde du 05-10-99 au 09-10-99"]
+    assert (absence.section, absence.employee_gain, absence.base, absence.rate) == ("brut", "-500.00", "5.00", "100.000")  # the minus is kept
+    wrapped = by["Sécurité Sociale-Maladie Maternité Invalidité Décès"]  # label joined across the two printed rows
+    assert (wrapped.section, wrapped.employer_amount, wrapped.employer_rate, wrapped.employee_deduct) == ("cotisations", "338.00", "13.000", None)
+    csg = by["CSG déductible de l'impôt sur le revenu"]
+    assert csg.employee_deduct == "175.00"  # printed twice on top of each other: counted once
+    assert "SANTE" not in " ".join(by) and "RETRAITE" not in " ".join(by)  # section headings never leak into labels
+    restaurant = by["Restaurant Exemple mois précédent"]
+    assert (restaurant.section, restaurant.employee_deduct, restaurant.employee_gain) == ("other", "5.00", None)
+
+
+def test_matmut_checks_pass_and_catch_a_lost_sign():
+    from payslip_fixtures import matmut_page
+    from platypod_pipeline.payslips import matmut
+
+    p = matmut.parse([matmut_page()])
+    check(p, "2099-10")
+    assert p.warnings == []
+    absence = next(l for l in p.lines if l.label.startswith("Abs."))
+    absence.employee_gain = "500.00"  # sign dropped: the gross elements no longer add up
+    check(p, "2099-10")
+    assert any("gross pay elements" in x for x in p.warnings)

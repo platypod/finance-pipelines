@@ -21,7 +21,7 @@ class RawLine:
 
 @dataclass
 class Parsed:
-    layout: str  # silae | modern
+    layout: str  # silae | modern | matmut
     summary: dict[str, str] = field(default_factory=dict)  # canonical key -> raw text
     lines: list[RawLine] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)

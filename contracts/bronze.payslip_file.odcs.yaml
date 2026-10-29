@@ -52,7 +52,7 @@ schema:
         logicalType: string
         physicalType: text
         required: true
-        description: "Detected layout: silae | modern | unknown."
+        description: "Detected layout: silae | modern | matmut | unknown."
       - name: source
         logicalType: string
         physicalType: text

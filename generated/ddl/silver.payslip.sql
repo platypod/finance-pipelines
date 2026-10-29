@@ -51,6 +51,6 @@ COMMENT ON COLUMN silver.payslip.leave_cp_n1_balance IS 'Paid-leave balance, pre
 COMMENT ON COLUMN silver.payslip.leave_cp_n_balance IS 'Paid-leave balance, current year (days).';
 COMMENT ON COLUMN silver.payslip.leave_rtt_balance IS 'RTT balance (days).';
 COMMENT ON COLUMN silver.payslip.payment_date IS 'Payment date.';
-COMMENT ON COLUMN silver.payslip.layout IS 'Source layout.';
+COMMENT ON COLUMN silver.payslip.layout IS 'Source layout: silae | modern | matmut.';
 COMMENT ON COLUMN silver.payslip.source IS 'text | ocr.';
 COMMENT ON COLUMN silver.payslip.source_sha256 IS 'File this row was derived from.';

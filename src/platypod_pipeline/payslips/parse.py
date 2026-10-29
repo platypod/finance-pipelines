@@ -6,7 +6,7 @@ import re
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from . import modern, silae
+from . import matmut, modern, silae
 from .extract import OCR_VARIANTS, extract, ocr_pages
 from .model import Parsed
 from .words import fold, rows_of
@@ -18,6 +18,8 @@ def detect(pages) -> str | None:
         return "silae"
     if "designation" in text and "en euros" in text:
         return "modern"
+    if "base ou part salariale" in text and "part patronale" in text:
+        return "matmut"
     return None
 
 
@@ -62,7 +64,7 @@ def _parse_pages(pages) -> Parsed | None:
     layout = detect(pages)
     if layout is None:
         return None
-    return (silae if layout == "silae" else modern).parse(pages)
+    return {"silae": silae, "modern": modern, "matmut": matmut}[layout].parse(pages)
 
 
 def parse_pdf(path: Path, expected_period: str) -> tuple[Parsed | None, str]:

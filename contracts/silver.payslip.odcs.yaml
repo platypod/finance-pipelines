@@ -135,7 +135,7 @@ schema:
         logicalType: string
         physicalType: text
         required: true
-        description: Source layout.
+        description: "Source layout: silae | modern | matmut."
       - name: source
         logicalType: string
         physicalType: text
